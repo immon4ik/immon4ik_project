@@ -1,0 +1,21 @@
+version: '3.3'
+
+services:
+  ui:
+    command: ${SERVICE_UI_COMMAND}
+    volumes:
+      - ${UI_VOLUME_NAME}:${UI_VOLUME_DEST}
+
+  post:
+    volumes:
+      - ${POST_VOLUME_NAME}:${POST_VOLUME_DEST}
+
+  comment:
+    command: ${SERVICE_COMMENT_COMMAND}
+    volumes:
+      - ${COMMENT_VOLUME_NAME}:${COMMENT_VOLUME_DEST}
+
+volumes:
+  app_ui:
+  app_comment:
+  app_post:
