@@ -1,0 +1,5 @@
+{
+    "project_id": "immon4ik-infra",
+    "source_image_family": "ubuntu-1604-lts",
+    "image_family": "docker-base"
+  }

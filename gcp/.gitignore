@@ -1,10 +1,10 @@
 # Terraform
-*.tfstate
-*.tfstate.*.backup
-*.tfstate.backup
-*.tfvars
-.terraform/
-*.terraform.tfstate.lock.info
+gcp/*.tfstate
+gcp/*.tfstate.*.backup
+gcp/*.tfstate.backup
+gcp/*.tfvars
+gcp/.terraform/
+gcp/*.terraform.tfstate.lock.info
 
 # Packer
 /docker-monolith/infra/packer/variables.json
@@ -14,14 +14,14 @@
 
 # Ansible
 *.retry
-service_account.json
-vault.key
+gcp/service_account.json
+gcp/vault.key
 
 # Ansible Galaxy
-jdauphant.nginx
+gcp/jdauphant.nginx
 
 # Inspec
-inspec.lock
+gcp/inspec.lock
 
 # Vagrant & molecule
 .vagrant/

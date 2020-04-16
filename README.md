@@ -242,7 +242,7 @@ gcloud iam service-accounts create [SA-NAME] `
 - Создадим сборочный хост в gcp т.к. для корректной работы связки packer, ansible, terraform предпочтительней использовать *nix систему(_подсистема WSL в процессе тестирования_):
 
 ```powershell
-gcloud compute instances create ih1 `
+gcloud compute instances create myhost `
  --boot-disk-size=10GB `
  --image-family ubuntu-1604-lts `
  --image-project=ubuntu-os-cloud `
@@ -275,7 +275,7 @@ export VER_TERRAFORM="0.12.24"
 export VER_PACKER="1.5.5"
 
 # Качаем terraform и packer.
-sudo wget https://releases.hashicorp.com/terraform/${VER_TERRAFORM}/terraform_${VER_TERRAFORM}_linux_amd64.zip	
+sudo wget https://releases.hashicorp.com/terraform/${VER_TERRAFORM}/terraform_${VER_TERRAFORM}_linux_amd64.zip
 sudo wget https://releases.hashicorp.com/packer/${VER_PACKER}/packer_${VER_PACKER}_linux_amd64.zip
 
 # Распаковываем terraform и packer.
@@ -287,10 +287,10 @@ sudo mv terraform /usr/local/bin/
 sudo mv packer /usr/local/bin/
 
 # Линкуем terraform и packer.
-runuser -l immon4ik -c 'which terraform'
-runuser -l immon4ik -c 'which packer'
-runuser -l immon4ik -c 'which ansible'
-runuser -l immon4ik -c 'which pip'
+sudo -H -u immon4ik bash -c 'which terraform'
+sudo -H -u immon4ik bash -c 'which packer'
+sudo -H -u immon4ik bash -c 'which ansible'
+sudo -H -u immon4ik bash -c 'which pip'
 
 # Проверка версии софта.
 git --version
@@ -298,4 +298,86 @@ terraform -v
 packer -v
 ansible --version
 
+```
+
+- Команды для проверки и возможного дебага:
+
+```powershell
+ssh immon4ik@ip_myhost
+cat /var/log/syslog
+sudo google_metadata_script_runner --script-type startup --debug
+
+gcloud compute instances add-metadata myhost `
+ --metadata-from-file startup-script=gcp/scripts/install.sh
+
+```
+
+- Работаем с хостом сборки myhost. Выполнена инициализация и вход в gcp. Для синхронизации файлов на хосте сборки и windows хоста настроен плагин для vsc - SFTP - <https://github.com/liximomo/vscode-sftp.git>:  
+./vscode/sftp.json  
+
+```json
+{
+  "name": "myhost",
+  "host": "ip_myhost",
+  "protocol": "sftp",
+  "port": 22,
+  "username": "immon4ik",
+  "privateKeyPath": "path/my_ssh",
+  "remotePath": "path/my_project_folder",
+  "downloadOnOpen": true,
+  "uploadOnSave": true,
+  "watcher": {
+    "files": "**/*",
+    "autoUpload": true,
+    "autoDelete": true
+    },
+  "ignore": [".vscode", ".git", ".DS_Store"]
+}
+
+```
+
+- Пишем шаблон для packer, плейбук для ansible:
+/gcp/packer/docker-ms.json
+
+```json
+{
+    "variables": {
+        "project_id": null,
+        "source_image_family": null,
+        "machine_type": "g1-small",
+        "image_description": "img for docker-ms",
+        "disk_size": "10",
+        "network": "default",
+        "tags": "docker-ms"
+    },
+    "builders": [
+        {
+            "type": "googlecompute",
+            "project_id": "{{ user `project_id` }}",
+            "image_name": "docker-ms-{{timestamp}}",
+            "image_family": "docker-ms-base",
+            "source_image_family": "{{ user `source_image_family` }}",
+            "zone": "europe-west1-b",
+            "ssh_username": "immon4ik",
+            "machine_type": "{{ user `machine_type` }}",
+            "image_description": "{{ user `image_description` }}",
+            "disk_size": "{{ user `disk_size` }}",
+            "network": "{{ user `network` }}",
+            "tags": "{{ user `tags` }}"
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "ansible",
+            "playbook_file": "ansible/playbooks/packer_docker_ms.yml"
+        }
+    ]
+}
+
+```
+
+- Запускаем проверку и создание образа:
+
+```bash
+packer validate -var-file=packer/variables.json packer/docker-ms.json
 ```

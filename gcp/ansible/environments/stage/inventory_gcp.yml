@@ -3,7 +3,7 @@ plugin: gcp_compute
 zones:
   - europe-west1-b
 projects:
-  - silken-period-262510
+  - immon4ik-infra
 scopes:
   - https://www.googleapis.com/auth/compute
 service_account_file: ~/otus/gcp/service_account.json

@@ -1,0 +1,33 @@
+{
+    "variables": {
+        "project_id": null,
+        "source_image_family": null,
+        "machine_type": "g1-small",
+        "image_description": "img for docker-ms",
+        "disk_size": "10",
+        "network": "default",
+        "tags": "docker-ms"
+    },
+    "builders": [
+        {
+            "type": "googlecompute",
+            "project_id": "{{ user `project_id` }}",
+            "image_name": "docker-ms-{{timestamp}}",
+            "image_family": "docker-ms-base",
+            "source_image_family": "{{ user `source_image_family` }}",
+            "zone": "europe-west1-b",
+            "ssh_username": "immon4ik",
+            "machine_type": "{{ user `machine_type` }}",
+            "image_description": "{{ user `image_description` }}",
+            "disk_size": "{{ user `disk_size` }}",
+            "network": "{{ user `network` }}",
+            "tags": "{{ user `tags` }}"
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "ansible",
+            "playbook_file": "ansible/playbooks/packer_docker_ms.yml"
+        }
+    ]
+}

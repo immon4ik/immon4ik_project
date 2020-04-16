@@ -1,6 +1,0 @@
----
-- name: Install MongoDB
-  hosts: all
-  become: true
-  roles:
-    - db
