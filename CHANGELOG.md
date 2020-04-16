@@ -4,8 +4,11 @@
 
 [Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/1.0.3...HEAD)
 
+Dev [\#4](https://github.com/immon4ik/immon4ik_project/pull/4) ([immon4ik](https://github.com/immon4ik))
+
 **Implemented enhancements:**
 
+- i4-project-3. Работа с issues в github. [\#3](https://github.com/immon4ik/immon4ik_project/issues/3)
 - i4-project-2 [\#2](https://github.com/immon4ik/immon4ik_project/issues/2)
 
 ## [1.0.3](https://github.com/immon4ik/immon4ik_project/tree/1.0.3) (2020-04-16)
