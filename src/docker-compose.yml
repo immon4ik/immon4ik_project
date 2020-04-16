@@ -1,0 +1,65 @@
+version: '3.7'
+services:
+  mongo_db:
+    image: ${MONGO_DB_IMAGE}
+    volumes:
+      - ${MONGO_DB_VOL_NAME}:${MONGO_DB_VOL_DEST}
+    networks:
+        back_net:
+            aliases:
+                - ${MONGO_DB_BACK_NET_ALIAS}
+        front_net:
+            aliases:
+                - ${MONGO_DB_FRONT_NET_ALIAS}
+  rabbit_mq:
+    depends_on:
+      - mongo_db
+    image: ${RABBIT_MQ_IMAGE}
+    volumes:
+      - ${RABBIT_MQ_VOL_HOME_NAME}:${RABBIT_MQ_VOL_HOME_DEST}
+      - ${RABBIT_MQ_VOL_CONFIG_NAME}:${RABBIT_MQ_VOL_CONFIG_DEST}
+    networks:
+      back_net:
+        aliases:
+          - ${RABBIT_MQ_BACK_NET_ALIAS}
+  crawler:
+    build: ${CRAWLER_BUILD_PATH}
+    depends_on:
+      - rabbit_mq
+    image: ${DOCKER_HUB_USERNAME}/${CRAWLER_IMAGE}:${CRAWLER_IMAGE_VERSION}
+    volumes:
+      - ${CRAWLER_VOL_NAME}:${CRAWLER_VOL_DEST}
+    networks:
+      - ${NETWORK_BACK_NET}
+  ui:
+    build: ${UI_BUILD_PATH}
+    depends_on:
+      - crawler
+    image: ${DOCKER_HUB_USERNAME}/${UI_IMAGE}:${UI_IMAGE_VERSION}
+    volumes:
+      - ${UI_VOL_NAME}:${UI_VOL_DEST}
+    ports:
+      - ${UI_PORT}:${UI_PORT}/tcp
+    networks:
+      - ${NETWORK_FRONT_NET}
+
+volumes:
+  db_crawler:
+  mq_rabbit_home:
+  mq_rabbit_config:
+  bot_crawler:
+  app_ui:
+
+networks:
+  back_net:
+    driver: ${NETWORK_BACK_NET_DRIVER}
+    ipam:
+      driver: default
+      config:
+        - subnet: ${NETWORK_BACK_NET_SUBNET}
+  front_net:
+    driver: ${NETWORK_FRONT_NET_DRIVER}
+    ipam:
+      driver: default
+      config:
+        - subnet: ${NETWORK_FRONT_NET_SUBNET}
