@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased](https://github.com/immon4ik/immon4ik_project/tree/HEAD)
+
+[Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/1.0.2...HEAD)
+
+Добавить changelog.
+
+## [1.0.2](https://github.com/immon4ik/immon4ik_project/tree/1.0.2) (2020-04-16)
+
+[Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/1.0.1...1.0.2)
+
 ## [1.0.1](https://github.com/immon4ik/immon4ik_project/tree/1.0.1) (2020-04-16)
 
 [Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/1.0.0...1.0.1)
