@@ -1,7 +1,6 @@
 ---
-name: Tracking issue
-about: Use this template for tracking new features.
+name: i4-project-
 title: "[DATE]: [FEATURE NAME]"
-labels: tracking issue, needs triage
-assignees: octocat
+labels: enhancement, wontfix, bug, release-summary
+milestone: 2.0
 ---
