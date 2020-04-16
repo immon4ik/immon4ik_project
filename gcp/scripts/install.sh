@@ -28,8 +28,10 @@ mv terraform /usr/local/bin/
 mv packer /usr/local/bin/
 
 # Линкуем terraform и packer.
-which terraform
-which packer
+runuser -l immon4ik -c 'which terraform'
+runuser -l immon4ik -c 'which packer'
+runuser -l immon4ik -c 'which ansible'
+runuser -l immon4ik -c 'which pip'
 
 # Проверка версии софта.
 git --version

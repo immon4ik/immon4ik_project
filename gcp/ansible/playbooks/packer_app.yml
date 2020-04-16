@@ -1,0 +1,6 @@
+---
+- name: Install Ruby, Bundler, build-essential
+  hosts: all
+  become: true
+  roles:
+    - app

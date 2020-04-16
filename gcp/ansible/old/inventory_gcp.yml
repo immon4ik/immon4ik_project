@@ -1,0 +1,19 @@
+# http://docs.testing.ansible.com/ansible/latest/plugins/inventory/gcp_compute.html
+plugin: gcp_compute
+zones:
+  - europe-west1-b
+projects:
+  - silken-period-262510
+scopes:
+  - https://www.googleapis.com/auth/compute
+service_account_file: ~/otus/gcp/service_account.json
+auth_kind: serviceaccount
+filters:
+keyed_groups:
+  - prefix: ""
+    separator: ""
+    key: labels.ansible_group
+hostnames:
+  - name
+compose:
+  ansible_host: networkInterfaces[0].accessConfigs[0].natIP

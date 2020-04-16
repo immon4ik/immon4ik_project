@@ -251,10 +251,10 @@ gcloud compute instances create ih1 `
  --restart-on-failure `
  --metadata-from-file startup-script=gcp/scripts/install.sh
 [...]
-
+c
 ```
 
-- Создаем загрузочный скрипт gcp/scripts/install.sh:
+- Создаем загрузочный скрипт - <https://cloud.google.com/compute/docs/startupscript#gcloud_2> - gcp/scripts/install.sh:
 
 ```bash
 #!/bin/bash
@@ -287,8 +287,10 @@ sudo mv terraform /usr/local/bin/
 sudo mv packer /usr/local/bin/
 
 # Линкуем terraform и packer.
-which terraform
-which packer
+runuser -l immon4ik -c 'which terraform'
+runuser -l immon4ik -c 'which packer'
+runuser -l immon4ik -c 'which ansible'
+runuser -l immon4ik -c 'which pip'
 
 # Проверка версии софта.
 git --version
