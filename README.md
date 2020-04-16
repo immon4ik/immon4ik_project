@@ -4,6 +4,10 @@
 
 __Основной задачей проекта является закрепить практику по курсу.__
 
+------------------
+
+__15.04.2020. Создание образов контейнеров, сценария запуска приложения от otus. Проверка работы приложения.__
+
 - Поднятие хоста с помощью docker-machine для тестирования работ приложения от otus.
 
 ```bash
@@ -196,5 +200,100 @@ docker build -t immon/project-ui:1.0 ./project-ui
 ```bash
 docker run -d --network=front_net -p 8000:8000 --name ui --restart always \
  --network-alias=ui immon/project-ui:1.0
+
+```
+
+------------------
+
+__16.04.2020. Написание сценариев подключения к gcp. Упаковка образа и сборка _управляющего хоста_ с установленным docker, docker-compose, docker-machine на базе centos8. Применение packer, ansible и terraform.__
+
+- Для выполнения проекта используется хост:
+
+```powershell
+Get-ComputerInfo
+WindowsBuildLabEx                                       : 14393.3595.amd64fre.rs1_release_inmarket.200312-1730
+WindowsCurrentVersion                                   : 6.3
+WindowsEditionId                                        : ServerStandard
+WindowsInstallationType                                 : Server
+[...]
+$PSVersionTable.PSVersion
+Major  Minor  Build  Revision
+-----  -----  -----  --------
+5      1      14393  3471
+
+```
+
+- На хост предварительно установлены: 1. VSC - <https://code.visualstudio.com/download>; 2. Python27 - <https://www.python.org/downloads/windows/>; 3. Cloud SDK - <https://cloud.google.com/sdk/docs/>; 4. Ruby - <https://rubyinstaller.org/downloads/>; 5. OpenSSH - <https://github.com/PowerShell/Win32-OpenSSH>
+
+- Установлены дополнения для vsc, сгенерырованы и добавлены ssh ключи. Выполнена регистрация и инициализация в gcp - <https://cloud.google.com/?hl=RU>, создан проект в gcp для управляющего хоста на базе centos8, создан сервисный аккаунт, скачан json-ключ. Полезный пул комманд:
+
+```powershell
+gcloud init
+gcloud auth login
+gcloud auth list
+gcloud projects create PROJECT_ID
+gcloud auth application-default login
+gcloud iam service-accounts create [SA-NAME] `
+    --description "[SA-DESCRIPTION]" `
+    --display-name "[SA-DISPLAY-NAME]"
+
+```
+
+- Создадим сборочный хост в gcp т.к. для корректной работы связки packer, ansible, terraform предпочтительней использовать *nix систему(_подсистема WSL в процессе тестирования_):
+
+```powershell
+gcloud compute instances create ih1 `
+ --boot-disk-size=10GB `
+ --image-family ubuntu-1604-lts `
+ --image-project=ubuntu-os-cloud `
+ --machine-type=g1-small `
+ --tags ih1 `
+ --restart-on-failure `
+ --metadata-from-file startup-script=gcp/scripts/install.sh
+[...]
+
+```
+
+- Создаем загрузочный скрипт gcp/scripts/install.sh:
+
+```bash
+#!/bin/bash
+
+# Обновляем и устанавливаем софт.
+sudo apt --assume-yes update
+sudo apt --assume-yes upgrade
+sudo apt --assume-yes install ruby-full ruby-bundler build-essential wget git python-apt python-pip unzip
+
+# Обновляем pip.
+sudo pip install --upgrade pip
+
+# Ставим ansible.
+sudo apt --assume-yes install ansible
+
+# Переменные среды окружения с актуальными версиями terraform и packer.
+export VER_TERRAFORM="0.12.24"
+export VER_PACKER="1.5.5"
+
+# Качаем terraform и packer.
+sudo wget https://releases.hashicorp.com/terraform/${VER_TERRAFORM}/terraform_${VER_TERRAFORM}_linux_amd64.zip	
+sudo wget https://releases.hashicorp.com/packer/${VER_PACKER}/packer_${VER_PACKER}_linux_amd64.zip
+
+# Распаковываем terraform и packer.
+sudo unzip terraform_${VER_TERRAFORM}_linux_amd64.zip
+sudo unzip packer_${VER_PACKER}_linux_amd64.zip
+
+# Ставим terraform и packer.
+sudo mv terraform /usr/local/bin/
+sudo mv packer /usr/local/bin/
+
+# Линкуем terraform и packer.
+which terraform
+which packer
+
+# Проверка версии софта.
+git --version
+terraform -v
+packer -v
+ansible --version
 
 ```
