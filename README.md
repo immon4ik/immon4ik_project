@@ -4,7 +4,8 @@
 
 __Основной задачей проекта является закрепить практику по курсу.__
 
-<!-- Поднятие хоста с помощью docker-machine для тестирования работ приложения от otus -->
+- Поднятие хоста с помощью docker-machine для тестирования работ приложения от otus.
+
 ```bash
 export GOOGLE_PROJECT=my_project
 docker-machine create --driver google \
@@ -14,7 +15,8 @@ docker-machine create --driver google \
 
 ```
 
-<!-- Для проверки работы добавляем правило firewall созданному хосту docker-project -->
+- Для проверки работы добавляем правило firewall созданному хосту docker-project.
+
 ```bash
 gcloud compute firewall-rules create docker-machine-allow-http \
   --allow tcp:80 \
@@ -42,33 +44,38 @@ gcloud compute firewall-rules create project-ui \
 
 ```
 
-<!-- Переходим к работе с docker-project -->
+- Переходим к работе с docker-project.
+
 ```bash
 eval $(docker-macine env docker-project)
 
 ```
 
-<!-- Создадим две сети docker -->
+- Создадим две сети docker.
+
 ```bash
 docker network create back_net --subnet=10.0.2.0/24
 docker network create front_net --subnet=10.0.1.0/24
 
 ```
 
-<!-- Запустим котейнер mongodb в подсети back_net -->
+- Запустим котейнер mongodb в подсети back_net.
+
 ```bash
 docker run -d --network=back_net --name mongo_db \
  --network-alias=crawler_db mongo:latest
 
 ```
 
-<!-- Подключем mongodb к сети front_net -->
+- Подключем mongodb к сети front_net.
+
 ```bash
 docker network connect --alias ui_db front_net mongo_db
 
 ```
 
-<!-- Запустим контейнер rabbitmq в подсети back_net -->
+- Запустим контейнер rabbitmq в подсети back_net.
+
 ```bash
 # Проброшен порт в консоль управления.
 docker run -d --network=back_net -p 8081:15672 --hostname my_rabbit_mq --name rabbit_mq \
@@ -80,10 +87,13 @@ docker run -d --network=back_net --hostname my_rabbit_mq --name rabbit_mq \
 
 ```
 
-<!-- Входим в dockerhub для билда в него образов -->
-docker login -u mylogin -p mypass
+- Входим в dockerhub для билда в него образов.
 
-<!-- Пробуем собрать образ для project-crawler -->
+```bash
+docker login -u mylogin -p mypass
+```
+
+- Пробуем собрать образ для project-crawler.
 src/project-crawler/Dockerfile:
 
 ```bash
@@ -113,7 +123,8 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 
 ```
 
-<!-- Пишем docker-entrypoint.sh для контейнера crawler -->
+- Пишем docker-entrypoint.sh для контейнера crawler.
+
 ```bash
 #!/bin/sh
 set -e
@@ -123,20 +134,22 @@ python3 -u crawler/crawler.py https://vitkhab.github.io/search_engine_test_site/
 
 ```
 
-<!-- Билдим образ crawler в свой docker hub -->
+- Билдим образ crawler в свой docker hub.
+
 ```bash
 docker build -t immon/project-crawler:1.0 ./project-crawler
 
 ```
 
-<!-- Запустим контейнер с crawler в сети back_net -->
+- Запустим контейнер с crawler в сети back_net.
+
 ```bash
 docker run -d --network=back_net --name crawler --restart always \
  --network-alias=crawler immon/project-crawler:1.0
 
 ```
 
-<!-- Пишем Dockerfile билда образ для контейнера ui -->
+- Пишем Dockerfile билда образ для контейнера ui.
 src/project-ui/Dockerfile:
 
 ```bash
@@ -161,7 +174,8 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 
 ```
 
-<!-- Пишем docker-entrypoint.sh для контейнера ui -->
+- Пишем docker-entrypoint.sh для контейнера ui.
+
 ```bash
 #!/bin/sh
 set -e
@@ -170,13 +184,15 @@ cd ui && gunicorn ui:app -b 0.0.0.0
 
 ```
 
-<!-- Билдим образ project-ui в свой docker hub -->
+- Билдим образ project-ui в свой docker hub.
+
 ```bash
 docker build -t immon/project-ui:1.0 ./project-ui
 
 ```
 
-<!-- Запустим контейнер с crawler в сети front_net -->
+- Запустим контейнер с crawler в сети front_net.
+
 ```bash
 docker run -d --network=front_net -p 8000:8000 --name ui --restart always \
  --network-alias=ui immon/project-ui:1.0
