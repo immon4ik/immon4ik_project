@@ -3,7 +3,7 @@
   gather_facts: false
   tasks:
   - name: Install docker packages
-    remote_user: ubuntu
+    remote_user: immon4ik
     apt:
       name: "{{ item }}"
       state: present
@@ -14,55 +14,66 @@
       - curl
       - software-properties-common
     tags:
-      - docker
+      - docker-ms
   - name: Add Docker s official GPG key
-    remote_user: ubuntu
+    remote_user: immon4ik
     apt_key:
       url: https://download.docker.com/linux/ubuntu/gpg
       state: present
     tags:
-      - docker
+      - docker-ms
   - name: Verify that we have the key with the fingerprint
-    remote_user: ubuntu
+    remote_user: immon4ik
     apt_key:
       id: 0EBFCD88
       state: present
     tags:
-      - docker
+      - docker-ms
   - name: Set up the stable repository
-    remote_user: ubuntu
+    remote_user: immon4ik
     apt_repository:
       repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable
       state: present
       update_cache: yes
     tags:
-      - docker
+      - docker-ms
   - name: Update apt packages
-    remote_user: ubuntu
+    remote_user: immon4ik
     apt:
       update_cache: yes
     tags:
-      - docker
+      - docker-ms
   - name: Install docker
-    remote_user: ubuntu
+    remote_user: immon4ik
     apt:
       name: docker-ce
       state: present
       update_cache: yes
-    #notify: Start docker on boot
     tags:
-      - docker
-  - name: Add remote "ubuntu" user to "docker" group
-    remote_user: ubuntu
+      - docker-ms
+  - name: Add remote "immon4ik" user to "docker" group
+    remote_user: immon4ik
     user:
-      name: "ubuntu"
+      name: "immon4ik"
       group: "docker"
       append: yes
     tags:
-      - docker
+      - docker-ms
   - name: Install docker-compose
-    remote_user: ubuntu
-    get_url: 
-      url : https://github.com/docker/compose/releases/download/1.25.1-rc1/docker-compose-Linux-x86_64
+    remote_user: immon4ik
+    get_url:
+      url : https://github.com/docker/compose/releases/download/1.25.5/docker-compose-Linux-x86_64
       dest: /usr/local/bin/docker-compose
-      mode: 'u+x,g+x'
+      group: docker
+      mode: 'u+x,g+x,o+x'
+    tags:
+      - docker-ms
+  - name: Install docker-machine
+    remote_user: immon4ik
+    get_url:
+      url : https://github.com/docker/machine/releases/download/v0.16.2/docker-machine-Linux-x86_64
+      dest: /usr/local/bin/docker-machine
+      group: docker
+      mode: 'u+x,g+x,o+x'
+    tags:
+      - docker-ms

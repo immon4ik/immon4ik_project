@@ -8,6 +8,7 @@
 
 # Packer
 /docker-monolith/infra/packer/variables.json
+gcp/packer/images_version.txt
 
 # My scripts
 *.cache

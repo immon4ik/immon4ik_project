@@ -6,7 +6,7 @@ projects:
   - immon4ik-infra
 scopes:
   - https://www.googleapis.com/auth/compute
-service_account_file: ~/otus/gcp/service_account.json
+service_account_file: ~/otus/key/gcp/service_account.json
 auth_kind: serviceaccount
 filters:
   - labels.env = stage
