@@ -1,17 +1,14 @@
 # Changelog
 
-## [Unreleased](https://github.com/immon4ik/immon4ik_project/tree/HEAD)
-
-[Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/2.0.0...HEAD)
-
 **Implemented enhancements:**
 
-- i4-project. [\#5](https://github.com/immon4ik/immon4ik_project/issues/5)
+- i4-project-5. [\#5](https://github.com/immon4ik/immon4ik_project/issues/5)
 
 ## [2.0.0](https://github.com/immon4ik/immon4ik_project/tree/2.0.0) (2020-04-18)
 
 [Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/1.0.3...2.0.0)
 
+Релиз 2.0.0.
 Dev [\#4](https://github.com/immon4ik/immon4ik_project/pull/4) ([immon4ik](https://github.com/immon4ik))
 
 **Implemented enhancements:**
