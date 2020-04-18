@@ -2,7 +2,7 @@
 
 **Implemented enhancements:**
 
-- i4-project. [\#5](https://github.com/immon4ik/immon4ik_project/issues/5)
+- i4-project-5. [\#5](https://github.com/immon4ik/immon4ik_project/issues/5)
 
 ## [2.0.0](https://github.com/immon4ik/immon4ik_project/tree/2.0.0) (2020-04-18)
 
