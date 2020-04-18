@@ -1253,7 +1253,7 @@ docker-machine create --driver google \
 - Переходим к работе с docker-gl.
 
 ```bash
-eval $(docker-macine env docker-gl)
+eval $(docker-machine env docker-gl)
 
 ```
 
@@ -1282,9 +1282,299 @@ web:
 - Поднимаем контейнер с GitLab CI на хосте docker-gitlab используя docker-compose:
 
 ```bash
-export GITLAB_CI_URL=my_docker-gl_host_ip
-docker-machine ssh docker-gl mkdir -p /srv/gitlab/config /srv/gitlab/data /srv/gitlab/logs
+export GITLAB_CI_URL=http://my_docker-gl_host_ip/
+docker-machine ssh docker-gl sudo mkdir -p /srv/gitlab/config /srv/gitlab/data /srv/gitlab/logs
 docker-compose -f ./gitlab-ci/docker-compose.yml config
 docker-compose -f ./gitlab-ci/docker-compose.yml up -d
 
 ```
+
+- Проверяем работу Gitlab CI - <http://my_docker-gl_host_ip/>. Регистрируем пароль root. Создаем группу\проект для билда-теста-деплоя-дестроя приложения от otus.
+
+- Переходим в папку синхронизированную с windows хоста, создаем репо в Gitlab CI и пушим туда наши наработки:
+
+```git
+cd project
+git remote add gitlab http://my_docker-gl_host_ip/my_group/my_project.git
+git push gitlab gitlab-ci-otus-app
+
+```
+
+- Пишем скрипт, автоматизирующих запуск gitlab-runner на хосте. Т.к. планируется работа c __docker in docker(dind)__ учтена необходимость присутствие сертификатов. Для этого определены сертификаты хоста docker-gitlab и импортированы в переменные(*решение тестовое, не самое безопасное, вижу решение в монтировании volume с сертификатами MOUNT_POINT: /builds/$CI_PROJECT_PATH/mnt_*):  
+/gitlab-ci/run_reg_runner.sh
+
+```bash
+#!/bin/bash
+set -evx
+
+# Переменные для успешного запуска gitlab-runner:
+export GITLAB_CI_URL=http://my_docker-gl_host_ip/
+export GITLAB_CI_TOKEN=my_gitlab_ci_token
+export RUNNER_NAME=${RANDOM}-gitlab-runner
+
+# Получение пересенных среды docker-gitlab:
+docker-machine env docker-gl
+
+# Добавление переменных с содержанием сертификатов:
+export DOCKER_HOST_CA_FILE=$(cat $DOCKER_CERT_PATH/ca.pem)
+export DOCKER_HOST_CERT_FILE=$(cat $DOCKER_CERT_PATH/cert.pem)
+export DOCKER_HOST_KEY_FILE=$(cat $DOCKER_CERT_PATH/key.pem)
+
+# Запускаем gitlab-runner:
+docker run -d --name $RUNNER_NAME --restart always \
+  -v /srv/${RUNNER_NAME}/config:/etc/gitlab-runner \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /home/docker-user/crt:/builds/homework/example \
+  gitlab/gitlab-runner:latest
+
+# Регистрируем и добавляем переменные сертификатов в запущенный gitlab-runner:
+docker exec -it $RUNNER_NAME gitlab-runner register \
+  --run-untagged \
+  --locked=false \
+  --non-interactive \
+  --url ${GITLAB_CI_URL:-http://127.0.0.1} \
+  --registration-token $GITLAB_CI_TOKEN \
+  --description "docker-runner" \
+  --tag-list "linux,xenial,ubuntu,docker" \
+  --executor docker \
+  --docker-image "alpine:latest" \
+  --docker-privileged \
+  --docker-volumes "docker-certs-client:/certs/client" \
+  --env "DOCKER_DRIVER=overlay2" \
+  --env "DOCKER_TLS_CERTDIR=/certs" \
+  --env "DOCKER_HOST_CA_FILE=$(cat $DOCKER_CERT_PATH/ca.pem)" \
+  --env "DOCKER_HOST_CERT_FILE=$(cat $DOCKER_CERT_PATH/cert.pem)" \
+  --env "DOCKER_HOST_KEY_FILE=$(cat $DOCKER_CERT_PATH/key.pem)"
+
+```
+
+- Выполнен вход в dockerhub и регистрация переменных среды оружения для последующего пуша в личный dockerhub сбилженых образов приложения от otus.
+
+```bash
+export DOCKER_HUB_LOGIN=mylogin
+export DOCKER_HUB_PASSWORD=mypassword
+docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD
+
+```
+
+- Интегрированы оповещения от Gitlab CI в мой канал slack(#pavel-batsev - <https://devops-team-otus.slack.com/archives/CRTMNFU4U>), используя встроенную интеграцию Gitlab и добавленное в канал slack приложение Incoming WebHooks.
+
+- Пишем сценарий .gitlab-ci.yml для реализации билда образов и их пуша в мой dockerhub, теста-деплоя-дестроя приложения от otus с приминением dind:  
+.gitlab-ci.yml
+
+```yml
+stages:
+    - build
+    - test
+    - review
+    - stage
+    - production
+build_job:
+    stage: build
+    image: 'docker:19.03.8'
+    services:
+        - 'docker:19.03.8-dind'
+    before_script:
+        - 'docker info'
+        - 'docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD'
+        - 'docker image ls'
+    script:
+        - 'echo ''Building'''
+        - 'docker build -t ${DOCKER_HUB_LOGIN:-user}/otus-app-ui:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0} ./src/project-ui'
+        - 'docker push ${DOCKER_HUB_LOGIN:-user}/otus-app-ui:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0}'
+        - 'docker build -t ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0} ./src/project-crawler'
+        - 'docker push ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0}'
+    after_script:
+        - 'docker image ls'
+test_unit_job:
+    stage: test
+    script:
+        - 'echo ''Testing 1'''
+test_integration_job:
+    stage: test
+    script:
+        - 'echo ''Testing 2'''
+deploy_dev_job:
+    stage: review
+    script:
+        - 'echo ''Deploy on dev'''
+    environment:
+        name: dev
+        url: 'http://dev.example.com'
+branch_review:
+    stage: review
+    image: 'docker:19.03.8'
+    variables:
+        DOCKER_TLS_VERIFY: '1'
+        DOCKER_HOST: 'tcp://$CI_SERVER_HOST:2376'
+        DOCKER_CERT_PATH: /tmp/$CI_COMMIT_REF_NAME
+        COMPOSE_PROJECT_NAME: $COMPOSE_PROJECT_NAME
+        DOCKER_HUB_USERNAME: $DOCKER_HUB_USERNAME
+        NETWORK_BACK_NET: $NETWORK_BACK_NET
+        NETWORK_FRONT_NET: $NETWORK_FRONT_NET
+        NETWORK_BACK_NET_DRIVER: $NETWORK_BACK_NET_DRIVER
+        NETWORK_FRONT_NET_DRIVER: $NETWORK_FRONT_NET_DRIVER
+        NETWORK_BACK_NET_SUBNET: $NETWORK_BACK_NET_SUBNET
+        NETWORK_FRONT_NET_SUBNET: $NETWORK_FRONT_NET_SUBNET
+        MONGO_DB_IMAGE: $MONGO_DB_IMAGE
+        MONGO_DB_VOL_NAME: $MONGO_DB_VOL_NAME
+        MONGO_DB_VOL_DEST: $MONGO_DB_VOL_DEST
+        MONGO_DB_BACK_NET_ALIAS: $MONGO_DB_BACK_NET_ALIAS
+        MONGO_DB_FRONT_NET_ALIAS: $MONGO_DB_FRONT_NET_ALIAS
+        RABBIT_MQ_IMAGE: $RABBIT_MQ_IMAGE
+        RABBIT_MQ_VOL_HOME_NAME: $RABBIT_MQ_VOL_HOME_NAME
+        RABBIT_MQ_VOL_HOME_DEST: $RABBIT_MQ_VOL_HOME_DEST
+        RABBIT_MQ_VOL_CONFIG_NAME: $RABBIT_MQ_VOL_CONFIG_NAME
+        RABBIT_MQ_VOL_CONFIG_DEST: $RABBIT_MQ_VOL_CONFIG_DEST
+        RABBIT_MQ_BACK_NET_ALIAS: $RABBIT_MQ_BACK_NET_ALIAS
+        CRAWLER_BUILD_PATH: $CRAWLER_BUILD_PATH
+        CRAWLER_IMAGE: $CRAWLER_IMAGE
+        CRAWLER_IMAGE_VERSION: $CRAWLER_IMAGE_VERSION
+        CRAWLER_VOL_NAME: $CRAWLER_VOL_NAME
+        CRAWLER_VOL_DEST: $CRAWLER_VOL_DEST
+        UI_BUILD_PATH: $UI_BUILD_PATH
+        UI_IMAGE: $UI_IMAGE
+        UI_IMAGE_VERSION: $UI_IMAGE_VERSION
+        UI_VOL_NAME: $UI_VOL_NAME
+        UI_VOL_DEST: $UI_VOL_DEST
+        UI_PORT: $UI_PORT
+    before_script:
+        - 'mkdir -p $DOCKER_CERT_PATH'
+        - 'echo "$DOCKER_HOST_CA_FILE" > $DOCKER_CERT_PATH/ca.pem'
+        - 'echo "$DOCKER_HOST_CERT_FILE" > $DOCKER_CERT_PATH/cert.pem'
+        - 'echo "$DOCKER_HOST_KEY_FILE" > $DOCKER_CERT_PATH/key.pem'
+        - 'echo "DOCKER_CERT_PATH=$DOCKER_CERT_PATH"'
+        - 'ls -a $DOCKER_CERT_PATH'
+        - 'echo "DOCKER_HOST=$DOCKER_HOST"'
+        - 'docker info'
+        - 'docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD'
+        - 'apk add py-pip python-dev libffi-dev openssl-dev gcc libc-dev make'
+        - 'pip install docker-compose'
+        - 'docker-compose --version'
+        - 'docker ps -as'
+        - 'docker image ls'
+        - 'source ./src/.env'
+        - 'echo ${UI_PORT}'
+        - 'docker-compose -f ./src/docker-compose.yml config'
+    after_script:
+        - 'docker ps -as'
+        - 'docker image ls'
+    only:
+        - branches
+    except:
+        - master
+    script:
+        - 'echo "Deploy on branch/$CI_COMMIT_REF_NAME environment"'
+        - 'docker-compose -f ./src/docker-compose.yml up -d'
+    environment:
+        name: branch/$CI_COMMIT_REF_NAME
+        url: 'http://$CI_SERVER_HOST:8000'
+        on_stop: stop_branch_review
+        auto_stop_in: '3 days'
+stop_branch_review:
+    stage: review
+    image: 'docker:19.03.8'
+    variables:
+        DOCKER_TLS_VERIFY: '1'
+        DOCKER_HOST: 'tcp://$CI_SERVER_HOST:2376'
+        DOCKER_CERT_PATH: /tmp/$CI_COMMIT_REF_NAME
+        COMPOSE_PROJECT_NAME: $COMPOSE_PROJECT_NAME
+        DOCKER_HUB_USERNAME: $DOCKER_HUB_USERNAME
+        NETWORK_BACK_NET: $NETWORK_BACK_NET
+        NETWORK_FRONT_NET: $NETWORK_FRONT_NET
+        NETWORK_BACK_NET_DRIVER: $NETWORK_BACK_NET_DRIVER
+        NETWORK_FRONT_NET_DRIVER: $NETWORK_FRONT_NET_DRIVER
+        NETWORK_BACK_NET_SUBNET: $NETWORK_BACK_NET_SUBNET
+        NETWORK_FRONT_NET_SUBNET: $NETWORK_FRONT_NET_SUBNET
+        MONGO_DB_IMAGE: $MONGO_DB_IMAGE
+        MONGO_DB_VOL_NAME: $MONGO_DB_VOL_NAME
+        MONGO_DB_VOL_DEST: $MONGO_DB_VOL_DEST
+        MONGO_DB_BACK_NET_ALIAS: $MONGO_DB_BACK_NET_ALIAS
+        MONGO_DB_FRONT_NET_ALIAS: $MONGO_DB_FRONT_NET_ALIAS
+        RABBIT_MQ_IMAGE: $RABBIT_MQ_IMAGE
+        RABBIT_MQ_VOL_HOME_NAME: $RABBIT_MQ_VOL_HOME_NAME
+        RABBIT_MQ_VOL_HOME_DEST: $RABBIT_MQ_VOL_HOME_DEST
+        RABBIT_MQ_VOL_CONFIG_NAME: $RABBIT_MQ_VOL_CONFIG_NAME
+        RABBIT_MQ_VOL_CONFIG_DEST: $RABBIT_MQ_VOL_CONFIG_DEST
+        RABBIT_MQ_BACK_NET_ALIAS: $RABBIT_MQ_BACK_NET_ALIAS
+        CRAWLER_BUILD_PATH: $CRAWLER_BUILD_PATH
+        CRAWLER_IMAGE: $CRAWLER_IMAGE
+        CRAWLER_IMAGE_VERSION: $CRAWLER_IMAGE_VERSION
+        CRAWLER_VOL_NAME: $CRAWLER_VOL_NAME
+        CRAWLER_VOL_DEST: $CRAWLER_VOL_DEST
+        UI_BUILD_PATH: $UI_BUILD_PATH
+        UI_IMAGE: $UI_IMAGE
+        UI_IMAGE_VERSION: $UI_IMAGE_VERSION
+        UI_VOL_NAME: $UI_VOL_NAME
+        UI_VOL_DEST: $UI_VOL_DEST
+        UI_PORT: $UI_PORT
+    before_script:
+        - 'mkdir -p $DOCKER_CERT_PATH'
+        - 'echo "$DOCKER_HOST_CA_FILE" > $DOCKER_CERT_PATH/ca.pem'
+        - 'echo "$DOCKER_HOST_CERT_FILE" > $DOCKER_CERT_PATH/cert.pem'
+        - 'echo "$DOCKER_HOST_KEY_FILE" > $DOCKER_CERT_PATH/key.pem'
+        - 'echo "DOCKER_CERT_PATH=$DOCKER_CERT_PATH"'
+        - 'ls -a $DOCKER_CERT_PATH'
+        - 'echo "DOCKER_HOST=$DOCKER_HOST"'
+        - 'docker info'
+        - 'docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD'
+        - 'apk add py-pip python-dev libffi-dev openssl-dev gcc libc-dev make'
+        - 'pip install docker-compose'
+        - 'docker-compose --version'
+        - 'docker ps -as'
+        - 'docker image ls'
+        - 'source ./src/.env'
+        - 'echo ${UI_PORT}'
+        - 'docker-compose -f ./src/docker-compose.yml config'
+    after_script:
+        - 'docker ps -as'
+        - 'docker image ls'
+    only:
+        - branches
+    except:
+        - master
+    when: manual
+    script:
+        - 'echo ''Remove branch review app'''
+        - 'docker-compose -f ./src/docker-compose.yml down'
+        - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-ui) || echo'
+        - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler) || echo'
+        - 'docker image rm -f $(docker image ls -q --filter ''dangling=true'') || echo'
+    environment:
+        name: branch/$CI_COMMIT_REF_NAME
+        action: stop
+staging:
+    stage: stage
+    when: manual
+    only:
+        - /^\d+\.\d+\.\d+/
+    script:
+        - 'echo ''Deploy on stage'''
+    environment:
+        name: stage
+        url: 'https://beta.example.com'
+production:
+    stage: production
+    when: manual
+    only:
+        - /^\d+\.\d+\.\d+/
+    script:
+        - 'echo ''Deploy on production'''
+    environment:
+        name: production
+        url: 'https://example.com'
+
+```
+
+- Выполняем коммит в репо Gitlab CI и проверяем результат. В браузре открываем <http://my_docker-gl_host_ip:8000>. Полезные команды диагностики:
+
+```bash
+docker-compose ps
+docker-compose logs $(docker-compose ps -aq)
+
+```
+
+__(_В основе своей проектная стадия для mvp завершена._)__  
+__В следующей части будет добавлено тестирование, мониторинг, логирование. Доработаны\автоматизированы процессы разворачивания инфраструктуры и приложения. Т.к. разработка и документация ведётся в одиночку, то в зависимости от сроков, для оркестрации контейнеров планируется использовать kuber.__
+
+------------------

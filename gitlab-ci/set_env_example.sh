@@ -13,3 +13,6 @@ docker-machine env docker-gitlab
 export DOCKER_HOST_CA_FILE=$(cat $DOCKER_CERT_PATH/ca.pem)
 export DOCKER_HOST_CERT_FILE=$(cat $DOCKER_CERT_PATH/cert.pem)
 export DOCKER_HOST_KEY_FILE=$(cat $DOCKER_CERT_PATH/key.pem)
+
+# Переменные интеграций:
+export INCOMING_WEBHOOKS_URL=https://hooks.slack.com/services/token
