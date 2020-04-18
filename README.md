@@ -340,7 +340,7 @@ __!!!Поймал проблемы с выполнением sh скриптов
 
 __16.04.2020. Написание сценариев подключения к gcp. Упаковка образа и сборка _управляющего хоста_ с установленным docker, docker-compose, docker-machine на базе imubuntu-1604-lts. Применение packer, ansible и terraform.__
 
-- Для выполнения проекта используется хост:
+- Для выполнения проекта используется windows хост:
 
 ```powershell
 Get-ComputerInfo
@@ -447,7 +447,9 @@ gcloud compute instances add-metadata myhost `
 
 ```
 
-- Работаем с хостом сборки myhost. Выполнена инициализация и вход в gcp. Для синхронизации файлов на хосте сборки и windows хоста настроен плагин для vsc - SFTP - <https://github.com/liximomo/vscode-sftp.git>:  
+__Работаем с хостом сборки myhost.__
+
+- Выполнена инициализация и вход в gcp. Для синхронизации файлов на хосте сборки и windows хоста настроен плагин для vsc - SFTP - <https://github.com/liximomo/vscode-sftp.git>:  
 ./vscode/sftp.json  
 
 ```json
@@ -1191,3 +1193,98 @@ __Заходим в браузере, по адресу созданного х�
 __В дополнение были созданы вспомогательные параметризированнные модули. Весь актуальный код можно найти в /gcp.__
 
 ------------------
+
+__Работаем с _управляющим хостом_ docker-ms.__
+
+- Выполнена инициализация и вход в gcp. Для разграничения зон был создан отдельный проект immon4ik-docker.
+
+```bash
+gcloud init
+gcloud auth login
+gcloud auth list
+gcloud auth application-default login
+export GOOGLE_PROJECT=my_project
+
+```
+
+- Cинхронизации файлов нwindows хоста и _управляющего хоста_ настроен плагин для vsc - SFTP - <https://github.com/liximomo/vscode-sftp.git>.
+
+- Проверяем наличие необходимых правил firewall(80,443,8000) в проекте immon4ik-docker, при необходимости добавляем недостающие.
+
+```bash
+gcloud compute firewall-rules list
+
+gcloud compute firewall-rules create docker-machine-allow-http \
+  --allow tcp:80 \
+  --target-tags=docker-machine \
+  --description="Allow http connections" \
+  --direction=INGRESS
+
+gcloud compute firewall-rules create docker-machine-allow-https \
+  --allow tcp:443 \
+  --target-tags=docker-machine \
+  --description="Allow https connections" \
+  --direction=INGRESS
+
+gcloud compute firewall-rules create rabbitmq \
+  --allow tcp:8081 \
+  --target-tags=docker-machine \
+  --description="Allow RabbitMQ Mgmt connections" \
+  --direction=INGRESS
+
+gcloud compute firewall-rules create project-ui \
+  --allow tcp:8000 \
+  --target-tags=docker-machine \
+  --description="Allow Project UI connections" \
+  --direction=INGRESS
+
+```
+
+- Создана хост docker-gl используя docker-machine:
+
+```bash
+docker-machine create --driver google \
+ --google-machine-image "ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20200407" \
+ --google-disk-size "50" --google-disk-type "pd-standard" \
+ --google-machine-type "n1-standard-1" --google-zone europe-west1-b docker-gl
+
+```
+
+- Переходим к работе с docker-gl.
+
+```bash
+eval $(docker-macine env docker-gl)
+
+```
+
+- Пишем сценарий установки Gitlab на хост docker-gl:  
+gitlab-ci/docker-compose.yml
+
+```yml
+web:
+  image: 'gitlab/gitlab-ce:latest'
+  restart: always
+  hostname: 'gitlab.example.com'
+  environment:
+    GITLAB_OMNIBUS_CONFIG: |
+      external_url '${GITLAB_CI_URL:-http://127.0.0.1}'
+  ports:
+    - '80:80'
+    - '443:443'
+    - '2222:22'
+  volumes:
+    - '/srv/gitlab/config:/etc/gitlab'
+    - '/srv/gitlab/logs:/var/log/gitlab'
+    - '/srv/gitlab/data:/var/opt/gitlab'
+
+```
+
+- Поднимаем контейнер с GitLab CI на хосте docker-gitlab используя docker-compose:
+
+```bash
+export GITLAB_CI_URL=my_docker-gl_host_ip
+docker-machine ssh docker-gl mkdir -p /srv/gitlab/config /srv/gitlab/data /srv/gitlab/logs
+docker-compose -f ./gitlab-ci/docker-compose.yml config
+docker-compose -f ./gitlab-ci/docker-compose.yml up -d
+
+```
