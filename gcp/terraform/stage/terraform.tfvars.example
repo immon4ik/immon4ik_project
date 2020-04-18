@@ -1,0 +1,8 @@
+project          = "silken-period-111"
+public_key_path  = "~/.ssh/appuser.pub"
+private_key_path = "~/.ssh/appuser"
+disk_image       = "reddit-base-111"
+count_app = "2"
+health_check_port = "9292"
+hc_check_interval_sec = "10"
+hc_timeout_sec = "30"

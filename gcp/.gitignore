@@ -2,7 +2,7 @@
 gcp/*.tfstate
 gcp/*.tfstate.*.backup
 gcp/*.tfstate.backup
-gcp/*.tfvars
+# gcp/*.tfvars
 gcp/.terraform/
 gcp/*.terraform.tfstate.lock.info
 

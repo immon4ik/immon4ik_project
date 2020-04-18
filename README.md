@@ -121,9 +121,11 @@ ENV EXCLUDE_URLS .*github.com
 
 RUN chmod +x docker-entrypoint.sh
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN ln -s usr/local/bin/docker-entrypoint.sh / # backwards compat
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN ln -s usr/local/bin/docker-entrypoint.sh /
 
 ENTRYPOINT ["docker-entrypoint.sh"]
+# ENTRYPOINT sleep 10 && python3 -u crawler/crawler.py https://vitkhab.github.io/search_engine_test_site/
 
 ```
 
@@ -134,7 +136,7 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 set -e
 
 sleep 5
-python3 -u crawler/crawler.py https://vitkhab.github.io/search_engine_test_site/
+cd crawler && python3 -u crawler.py https://vitkhab.github.io/search_engine_test_site/
 
 ```
 
@@ -157,12 +159,12 @@ docker run -d --network=back_net --name crawler --restart always \
 src/project-ui/Dockerfile:
 
 ```dockerfile
-FROM python:3.6.0-alpine
+FROM python:3.8.2-alpine
 
 WORKDIR /app
 COPY . /app
 
-RUN apk --no-cache --update add build-base=0.4-r1 \
+RUN apk --no-cache --update add build-base=0.5-r1 \
     && pip install -r /app/requirements.txt \
     && apk del build-base
 
@@ -172,9 +174,11 @@ ENV FLASK_APP ui.py
 
 RUN chmod +x docker-entrypoint.sh
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN ln -s usr/local/bin/docker-entrypoint.sh / # backwards compat
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN ln -s usr/local/bin/docker-entrypoint.sh /
 
 ENTRYPOINT ["docker-entrypoint.sh"]
+# ENTRYPOINT cd ui && gunicorn ui:app -b 0.0.0.0
 
 ```
 
@@ -281,7 +285,7 @@ networks:
 ```env
 # Общие переменные среды всего проекта.
 COMPOSE_PROJECT_NAME=immon4ik_project
-DOCKER_HUB_USERNAME=myuser
+DOCKER_HUB_USERNAME=immon
 NETWORK_BACK_NET=back_net
 NETWORK_FRONT_NET=front_net
 NETWORK_BACK_NET_DRIVER=bridge
@@ -307,25 +311,30 @@ RABBIT_MQ_BACK_NET_ALIAS=crawler_mq
 # Переменные среды окружения crawler.
 CRAWLER_BUILD_PATH=./project-crawler
 CRAWLER_IMAGE=project-crawler
-CRAWLER_IMAGE_VERSION=3.1
+CRAWLER_IMAGE_VERSION=1.1
 CRAWLER_VOL_NAME=bot_crawler
 CRAWLER_VOL_DEST=/app
 
 # Переменные среды окружения ui.
 UI_BUILD_PATH=./project-ui
 UI_IMAGE=project-ui
-UI_IMAGE_VERSION=2.0
+UI_IMAGE_VERSION=1.1
 UI_VOL_NAME=app_ui
 UI_VOL_DEST=/app
 UI_PORT=8000
 
-USERNAME=myuser
-UI_PORT=8000
-UI_VERSION=2.0
-POST_VERSION=2.0
-COMMENT_VERSION=2.0
+```
+
+- Запускаем поднятие приложения, проверку списка контейнеров и их лог с промощью docker-compose:
+
+```bash
+dockr-compose up -d
+dockr-compose ps -a
+dockr-compose logs mongo_db rabbit_mq crawler ui
 
 ```
+
+__!!!Поймал проблемы с выполнением sh скриптов в ENTRYPOINT ["docker-entrypoint.sh"] - “exec: “docker-entrypoint.sh”: stat docker-entrypoint.sh: no such file or directory”. На windows хостах их следует создавать с параметром "select end of line sequence" равным LF или в nix системе - <https://stackoverflow.com/questions/55786898/standard-init-linux-go190-exec-user-process-caused-exec-format-error-when-ru>!!!__
 
 ------------------
 
@@ -610,3 +619,575 @@ v.1.4 - docker-ms-1587133818
 v.1.5 - docker-ms-1587136740
 
 ```
+
+- Пишем параметризированную инструкцию по поднятию _управляющего хоста_ используя terraform в виде модуля:  
+/gcp/terraform/modules/docker-ms/main.tf
+
+```t
+# Основное ресурса инстанса.
+resource "google_compute_instance" "docker-ms" {
+  count        = var.count_app
+  name         = "${var.name_app}-${count.index}"
+  machine_type = var.machine_type
+  zone         = var.zone
+  tags         = var.tags
+  boot_disk {
+    initialize_params {
+      image = var.app_disk_image
+    }
+  }
+
+  # Метки
+  labels = {
+    ansible_group = var.label_ansible_group
+    env           = var.label_env
+  }
+
+  # Параметры пользователя.
+  metadata = {
+    ssh-keys = "${var.user_name}:${file(var.public_key_path)}"
+  }
+
+  # Настройки сети.
+  network_interface {
+    network = var.network_name
+    access_config {
+      nat_ip = google_compute_address.app_ip.address
+    }
+  }
+
+  # Параметры подключения провижионеров.
+  connection {
+    type        = var.connection_type
+    host        = self.network_interface[0].access_config[0].nat_ip
+    user        = var.user_name
+    agent       = false
+    private_key = file(var.private_key_path)
+  }
+
+  # Зависимости.
+  # depends_on = [var.modules_depends_on]
+
+  # Провижионеры.
+  # provisioner "file" {
+  #   source      = "${path.module}/files/set_env.sh"
+  #   destination = "/tmp/set_env.sh"
+  # }
+
+  # provisioner "remote-exec" {
+  #   inline = [
+  #     "/bin/chmod +x /tmp/set_env.sh",
+  #     "/tmp/set_env.sh ${var.database_url}",
+  #   ]
+  # }
+}
+
+# Основное ресурса брандмауэра.
+# resource "google_compute_firewall" "firewall_puma" {
+#   name    = var.fw_name
+#   network = var.network_name
+#   allow {
+#     protocol = var.fw_allow_protocol
+#     ports    = var.fw_allow_ports
+#   }
+#   source_ranges = var.fw_source_ranges
+#   target_tags   = var.tags
+# }
+
+# Основное ресурса адреса хоста.
+resource "google_compute_address" "app_ip" {
+  name   = var.app_ip_name
+  region = var.region
+}
+
+```
+
+- Параметризируем переменные модуля docker-ms:  
+/gcp/terraform/modules/docker-ms/variables.tf
+
+```t
+variable count_app {
+  type    = string
+  default = "1"
+}
+
+variable name_app {
+  type    = string
+  default = "docker-ms"
+}
+
+variable machine_type {
+  type    = string
+  default = "g1-small"
+}
+
+variable zone {
+  type    = string
+  default = "europe-west1-b"
+}
+
+variable region {
+  type    = string
+  default = "europe-west-1"
+}
+
+variable tags {
+  type    = list(string)
+  default = ["docker-ms", "http-server"]
+}
+
+variable app_disk_image {
+  default = "docker-ms-1587136740"
+}
+
+variable label_ansible_group {
+  type    = string
+  default = "docker-ms"
+}
+
+variable label_env {
+  type        = string
+  description = "dev, stage, prod and etc."
+  default     = "dev"
+}
+
+variable network_name {
+  type    = string
+  default = "default"
+}
+
+variable user_name {
+  type    = string
+  default = "immon4ik"
+}
+
+variable public_key_path {
+  type    = string
+  default = ""
+}
+
+variable private_key_path {
+  type    = string
+  default = ""
+}
+
+variable connection_type {
+  type    = string
+  default = "ssh"
+}
+
+variable app_ip_name {
+  type    = string
+  default = "docker-ms-ip"
+}
+
+variable fw_name {
+  type    = string
+  default = "allow-project-default"
+}
+
+variable fw_allow_protocol {
+  type    = string
+  default = "tcp"
+}
+
+variable fw_allow_ports {
+  type    = list(string)
+  default = ["8000"]
+}
+
+variable fw_source_ranges {
+  type    = list(string)
+  default = ["0.0.0.0/0"]
+}
+
+variable modules_depends_on {
+  type    = any
+  default = null
+}
+
+```
+
+- Добавляем вывод внешнего адреса поднятого _управляющего хоста_:
+/gcp/terraform/modules/docker-ms/outputs.tf
+
+```t
+output "docker-ms_external_ip" {
+  value = google_compute_instance.docker-ms[*].network_interface[0].access_config[0].nat_ip
+}
+
+```
+
+- Напишем сценарий для поднятия _управляющего хоста_ в рамках контура dev:
+/gcp/terraform/dev/main.tf
+
+```t
+terraform {
+  # Версия terraform
+  required_version = "~>0.12.24"
+}
+
+provider "google" {
+  # Версия провайдера
+  version = "~>2.15"
+  project = var.project
+  region  = var.region
+}
+
+module "docker-ms" {
+  source           = "../modules/docker-ms"
+  public_key_path  = var.public_key_path
+  private_key_path = var.private_key_path
+  zone             = var.zone
+  region           = var.region
+  app_disk_image   = var.app_disk_image
+  label_env        = var.label_env
+}
+
+module "vpc" {
+  source           = "../modules/vpc"
+  source_ranges    = var.source_ranges
+  public_key_path  = var.public_key_path
+  private_key_path = var.private_key_path
+}
+
+```
+
+- Параметризируем переменные контура dev:
+/gcp/terraform/dev/variables.tf
+
+```t
+variable project {
+  description = "Project ID"
+}
+variable region {
+  description = "Region"
+  default     = "europe-west1"
+}
+
+variable zone {
+  description = "Zone"
+  default     = "europe-west1-b"
+}
+
+variable public_key_path {
+  description = "Path to the public key used for ssh access"
+}
+
+variable private_key_path {
+  description = "Path to the private key used for ssh access"
+}
+variable disk_image {
+  description = "Disk image"
+}
+
+variable count_app {
+  default = "1"
+}
+
+variable name_app {
+  default = "docker-ms"
+}
+
+variable health_check_port {
+  description = "Port for healthcheck backend service."
+}
+
+variable instance_group_name_port {
+  default = "http"
+}
+
+variable instance_group_port {
+  default = "8000"
+}
+
+variable forwarding_rule_port_range {
+  default = "80"
+}
+
+variable hc_check_interval_sec {
+  default = "1"
+}
+
+variable hc_timeout_sec {
+  default = "1"
+}
+
+variable app_disk_image {
+  description = "Disk image for docker-ms"
+  default     = "docker-ms-1587136740"
+}
+
+variable label_env {
+  type        = string
+  description = "dev, stage, prod and etc."
+  default     = "dev"
+}
+
+variable source_ranges {
+  description = "Allowed IP addresses"
+  default     = ["0.0.0.0/0"]
+}
+
+```
+
+- Изменяем значения переменных для контура dev:
+/gcp/terraform/dev/terraform.tfvats
+
+```t
+project               = "immon4ik-infra"
+public_key_path       = "~/otus/key/ssh/immon4ik.pub"
+private_key_path      = "~/otus/key/ssh/immon4ik.pri"
+disk_image            = "docker-ms-1587136740"
+count_app             = "1"
+health_check_port     = "8000"
+hc_check_interval_sec = "1"
+hc_timeout_sec        = "1"
+label_env             = "dev"
+
+```
+
+- Переходим в папку контура dev. Форматируем синтаксис terraform. Инициализируем модули, проверяем возможность создания и собираем _управляющий хост_:
+
+```bash
+cd dev
+terraform init
+terraform fmt
+terraform plan
+terraform apply --auto-approve
+
+```
+
+- Полезные команды:
+
+```bash
+terraform import module.vpc.google_compute_firewall.firewall_ssh default-allow-ssh
+
+```
+
+- Входим на созданный хост. Проверяем работоспособность docker, docker-compose и docker-machine. __Данный хост в дальнейшем планируется использовать, как _управляющий хост_, для реализации управления жизнью приложения при помощи Gitlab CI.__
+
+------------------
+
+__18.04.2020. В первой части реализации проекта, я создал сценарий деплоя приложения от otus, используя docker-compose. Используем его в другом модуле для terraform - docker-ms-app в контуре stage.__
+
+- Пишем параметризированную инструкцию по поднятию _управляющего хоста_ используя terraform в виде модуля:  
+/gcp/terraform/modules/docker-ms-app/main.tf
+
+```t
+# Основное ресурса инстанса.
+resource "google_compute_instance" "docker-ms-app" {
+  count        = var.count_app
+  name         = "${var.name_app}-${count.index}"
+  machine_type = var.machine_type
+  zone         = var.zone
+  tags         = var.tags
+  boot_disk {
+    initialize_params {
+      image = var.app_disk_image
+    }
+  }
+
+  # Метки
+  labels = {
+    ansible_group = var.label_ansible_group
+    env           = var.label_env
+  }
+
+  # Параметры пользователя.
+  metadata = {
+    ssh-keys = "${var.user_name}:${file(var.public_key_path)}"
+  }
+
+  # Настройки сети.
+  network_interface {
+    network = var.network_name
+    access_config {
+      nat_ip = google_compute_address.docker-ms-app-app_ip.address
+    }
+  }
+
+  # Параметры подключения провижионеров.
+  connection {
+    type        = var.connection_type
+    host        = self.network_interface[0].access_config[0].nat_ip
+    user        = var.user_name
+    agent       = false
+    private_key = file(var.private_key_path)
+  }
+
+  # Зависимости.
+  # depends_on = [var.modules_depends_on]
+
+  # Провижионеры.
+  provisioner "file" {
+    source      = "${path.module}/files/"
+    destination = "/tmp"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "/bin/chmod +x /tmp/deploy.sh",
+      "/tmp/deploy.sh",
+    ]
+  }
+}
+
+# Основное ресурса брандмауэра.
+resource "google_compute_firewall" "firewall_otus_app" {
+  name    = var.fw_name
+  network = var.network_name
+  allow {
+    protocol = var.fw_allow_protocol
+    ports    = var.fw_allow_ports
+  }
+  source_ranges = var.fw_source_ranges
+  target_tags   = var.tags
+}
+
+# Основное ресурса адреса хоста.
+resource "google_compute_address" "docker-ms-app-app_ip" {
+  name   = var.app_ip_name
+  region = var.region
+}
+
+```
+
+- Параметризируем переменные модуля docker-ms-app:  
+/gcp/terraform/modules/docker-ms-app/variables.tf
+
+```t
+variable count_app {
+  type    = string
+  default = "1"
+}
+
+variable name_app {
+  type    = string
+  default = "docker-ms-app"
+}
+
+variable machine_type {
+  type    = string
+  default = "g1-small"
+}
+
+variable zone {
+  type    = string
+  default = "europe-west1-b"
+}
+
+variable region {
+  type    = string
+  default = "europe-west-1"
+}
+
+variable tags {
+  type    = list(string)
+  default = ["docker-ms", "http-server", "docker"]
+}
+
+variable app_disk_image {
+  default = "docker-ms-1587136740"
+}
+
+variable label_ansible_group {
+  type    = string
+  default = "docker-ms"
+}
+
+variable label_env {
+  type        = string
+  description = "dev, stage, prod and etc."
+  default     = "stage"
+}
+
+variable network_name {
+  type    = string
+  default = "default"
+}
+
+variable user_name {
+  type    = string
+  default = "immon4ik"
+}
+
+variable public_key_path {
+  type    = string
+  default = ""
+}
+
+variable private_key_path {
+  type    = string
+  default = ""
+}
+
+variable connection_type {
+  type    = string
+  default = "ssh"
+}
+
+variable app_ip_name {
+  type    = string
+  default = "docker-ms-app-ip"
+}
+
+variable fw_name {
+  type    = string
+  default = "allow-project-default"
+}
+
+variable fw_allow_protocol {
+  type    = string
+  default = "tcp"
+}
+
+variable fw_allow_ports {
+  type    = list(string)
+  default = ["8000"]
+}
+
+variable fw_source_ranges {
+  type    = list(string)
+  default = ["0.0.0.0/0"]
+}
+
+variable modules_depends_on {
+  type    = any
+  default = null
+}
+
+```
+
+- Изменяем значения переменных для контура stage:
+/gcp/terraform/dev/terraform.tfvats
+
+```t
+project               = "immon4ik-infra"
+public_key_path       = "~/otus/key/ssh/immon4ik-for-terraform.pub"
+private_key_path      = "~/otus/key/ssh/immon4ik-for-terraform.pri"
+disk_image            = "docker-ms-1587136740"
+count_app             = "1"
+health_check_port     = "8000"
+hc_check_interval_sec = "1"
+hc_timeout_sec        = "1"
+label_env             = "stage"
+
+```
+
+- Переходим в папку контура stage. Форматируем синтаксис terraform. Инициализируем модули, проверяем возможность создания и собираем _хост с приложением от otus_:
+
+```bash
+cd stage
+terraform init
+terraform fmt
+terraform plan
+terraform apply --auto-approve
+
+```
+
+__Заходим в браузере, по адресу созданного хоста и проверяем работоспособность приложения: <http://iphost:8000>__
+
+__В дополнение были созданы вспомогательные параметризированнные модули. Весь актуальный код можно найти в /gcp.__
+
+------------------
