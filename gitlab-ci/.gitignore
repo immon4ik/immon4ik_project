@@ -1,0 +1,3 @@
+# Gitlab CI
+gitlab-ci/set_env.sh
+gitlab-ci/run_reg_runner.sh
