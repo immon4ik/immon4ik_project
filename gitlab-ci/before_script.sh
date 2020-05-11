@@ -13,8 +13,8 @@ docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD
 apk add py-pip python-dev libffi-dev openssl-dev gcc libc-dev make
 pip install docker-compose
 docker-compose --version
-docker ps -as
-docker image ls
-source ./src/.env
-echo ${UI_PORT}
-docker-compose -f ./src/docker-compose.yml config
+# docker ps -as
+# docker image ls
+# source ./src/.env
+# echo ${UI_PORT}
+# docker-compose -f ./src/docker-compose.yml config

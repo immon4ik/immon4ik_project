@@ -14,9 +14,6 @@ endif
 ENV_APP_FILE := $(shell test -f src/.env && echo 'src/.env')
 ENV_MONLOG_FILE := $(shell test -f monlog/.env && echo 'monlog/.env')
 
-glbs:
-	cd gitlab-ci;  bash before_script.sh; cd -
-
 build: $(APP_IMAGES) $(MON_IMAGES) $(LOG_IMAGES)
 
 $(APP_IMAGES):

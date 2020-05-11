@@ -1,3 +1,3 @@
-FROM kbudde/rabbitmq-exporter:v.1.0.0-RC7
+FROM kbudde/rabbitmq-exporter:latest
 
 COPY rabbitmq.conf conf/

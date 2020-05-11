@@ -14,7 +14,7 @@ services:
   rabbit_mq:
     depends_on:
       - mongo_db
-    image: ${DOCKER_HUB_USERNAME}/${RABBIT_MQ_IMAGE}:${RABBIT_MQ_IMAGE_VERSION}
+    image: ${DOCKER_HUB_USERNAME}/${RABBIT_MQ_IMAGE}:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
     volumes:
       - ${RABBIT_MQ_VOL_HOME_NAME}:${RABBIT_MQ_VOL_HOME_DEST}
       - ${RABBIT_MQ_VOL_CONFIG_NAME}:${RABBIT_MQ_VOL_CONFIG_DEST}
@@ -31,7 +31,7 @@ services:
       - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
     depends_on:
       - rabbit_mq
-    image: ${DOCKER_HUB_USERNAME}/${CRAWLER_IMAGE}:${CRAWLER_IMAGE_VERSION}
+    image: ${DOCKER_HUB_USERNAME}/${CRAWLER_IMAGE}:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
     volumes:
       - ${CRAWLER_VOL_NAME}:${CRAWLER_VOL_DEST}
     networks:
@@ -46,7 +46,7 @@ services:
       - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
     depends_on:
       - crawler
-    image: ${DOCKER_HUB_USERNAME}/${UI_IMAGE}:${UI_IMAGE_VERSION}
+    image: ${DOCKER_HUB_USERNAME}/${UI_IMAGE}:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
     volumes:
       - ${UI_VOL_NAME}:${UI_VOL_DEST}
     ports:
@@ -59,7 +59,7 @@ services:
         fluentd-address: localhost:24224
         tag: service.ui
   fluentd:
-    image: ${DOCKER_HUB_USERNAME}/fluentd:${FLUENTD_VERSION}
+    image: ${DOCKER_HUB_USERNAME}/fluentd:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
     ports:
       - '24224:24224'
       - '24224:24224/udp'

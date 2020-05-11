@@ -11,14 +11,10 @@ build_job:
         - 'docker:19.03.8-dind'
     before_script:
         - 'docker info'
-        - 'docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD'
-        - 'docker image ls'
+        - 'apk add make && apk add bash'
     script:
         - 'echo ''Building'''
-        - 'docker build -t ${DOCKER_HUB_LOGIN:-user}/otus-app-ui:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0} ./src/project-ui'
-        - 'docker push ${DOCKER_HUB_LOGIN:-user}/otus-app-ui:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0}'
-        - 'docker build -t ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0} ./src/project-crawler'
-        - 'docker push ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler:${CI_COMMIT_TAG:-1.0.0}.${CI_COMMIT_SHORT_SHA:-0}'
+        - 'cd gitlab-ci && ls && make build && make push'
     after_script:
         - 'docker image ls'
 test_unit_job_ui:
@@ -45,6 +41,10 @@ test_unit_job_crawler:
         - 'python -m unittest discover -s tests/'
         - 'coverage run -m unittest discover -s tests/'
         - 'coverage report --include crawler/crawler.py'
+test_integration_job:
+    stage: test
+    script:
+        - 'echo ''Testing 2'''
 deploy_dev_job:
     stage: review
     script:
@@ -59,54 +59,9 @@ branch_review:
         DOCKER_TLS_VERIFY: '1'
         DOCKER_HOST: 'tcp://$CI_SERVER_HOST:2376'
         DOCKER_CERT_PATH: /tmp/$CI_COMMIT_REF_NAME
-        COMPOSE_PROJECT_NAME: $COMPOSE_PROJECT_NAME
-        DOCKER_HUB_USERNAME: $DOCKER_HUB_USERNAME
-        NETWORK_BACK_NET: $NETWORK_BACK_NET
-        NETWORK_FRONT_NET: $NETWORK_FRONT_NET
-        NETWORK_BACK_NET_DRIVER: $NETWORK_BACK_NET_DRIVER
-        NETWORK_FRONT_NET_DRIVER: $NETWORK_FRONT_NET_DRIVER
-        NETWORK_BACK_NET_SUBNET: $NETWORK_BACK_NET_SUBNET
-        NETWORK_FRONT_NET_SUBNET: $NETWORK_FRONT_NET_SUBNET
-        MONGO_DB_IMAGE: $MONGO_DB_IMAGE
-        MONGO_DB_VOL_NAME: $MONGO_DB_VOL_NAME
-        MONGO_DB_VOL_DEST: $MONGO_DB_VOL_DEST
-        MONGO_DB_BACK_NET_ALIAS: $MONGO_DB_BACK_NET_ALIAS
-        MONGO_DB_FRONT_NET_ALIAS: $MONGO_DB_FRONT_NET_ALIAS
-        RABBIT_MQ_IMAGE: $RABBIT_MQ_IMAGE
-        RABBIT_MQ_VOL_HOME_NAME: $RABBIT_MQ_VOL_HOME_NAME
-        RABBIT_MQ_VOL_HOME_DEST: $RABBIT_MQ_VOL_HOME_DEST
-        RABBIT_MQ_VOL_CONFIG_NAME: $RABBIT_MQ_VOL_CONFIG_NAME
-        RABBIT_MQ_VOL_CONFIG_DEST: $RABBIT_MQ_VOL_CONFIG_DEST
-        RABBIT_MQ_BACK_NET_ALIAS: $RABBIT_MQ_BACK_NET_ALIAS
-        CRAWLER_BUILD_PATH: $CRAWLER_BUILD_PATH
-        CRAWLER_IMAGE: $CRAWLER_IMAGE
-        CRAWLER_IMAGE_VERSION: $CRAWLER_IMAGE_VERSION
-        CRAWLER_VOL_NAME: $CRAWLER_VOL_NAME
-        CRAWLER_VOL_DEST: $CRAWLER_VOL_DEST
-        UI_BUILD_PATH: $UI_BUILD_PATH
-        UI_IMAGE: $UI_IMAGE
-        UI_IMAGE_VERSION: $UI_IMAGE_VERSION
-        UI_VOL_NAME: $UI_VOL_NAME
-        UI_VOL_DEST: $UI_VOL_DEST
-        UI_PORT: $UI_PORT
     before_script:
-        - 'mkdir -p $DOCKER_CERT_PATH'
-        - 'echo "$DOCKER_HOST_CA_FILE" > $DOCKER_CERT_PATH/ca.pem'
-        - 'echo "$DOCKER_HOST_CERT_FILE" > $DOCKER_CERT_PATH/cert.pem'
-        - 'echo "$DOCKER_HOST_KEY_FILE" > $DOCKER_CERT_PATH/key.pem'
-        - 'echo "DOCKER_CERT_PATH=$DOCKER_CERT_PATH"'
-        - 'ls -a $DOCKER_CERT_PATH'
-        - 'echo "DOCKER_HOST=$DOCKER_HOST"'
-        - 'docker info'
-        - 'docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD'
-        - 'apk add py-pip python-dev libffi-dev openssl-dev gcc libc-dev make'
-        - 'pip install docker-compose'
-        - 'docker-compose --version'
-        - 'docker ps -as'
-        - 'docker image ls'
-        - 'source ./src/.env'
-        - 'echo ${UI_PORT}'
-        - 'docker-compose -f ./src/docker-compose.yml config'
+        - 'apk add make && apk add bash'
+        - 'cd gitlab-ci && make bsgl'
     after_script:
         - 'docker ps -as'
         - 'docker image ls'
@@ -116,7 +71,7 @@ branch_review:
         - master
     script:
         - 'echo "Deploy on branch/$CI_COMMIT_REF_NAME environment"'
-        - 'docker-compose -f ./src/docker-compose.yml up -d'
+        - 'ls && make up && make upmon'
     environment:
         name: branch/$CI_COMMIT_REF_NAME
         url: 'http://$CI_SERVER_HOST:8000'
@@ -129,54 +84,9 @@ stop_branch_review:
         DOCKER_TLS_VERIFY: '1'
         DOCKER_HOST: 'tcp://$CI_SERVER_HOST:2376'
         DOCKER_CERT_PATH: /tmp/$CI_COMMIT_REF_NAME
-        COMPOSE_PROJECT_NAME: $COMPOSE_PROJECT_NAME
-        DOCKER_HUB_USERNAME: $DOCKER_HUB_USERNAME
-        NETWORK_BACK_NET: $NETWORK_BACK_NET
-        NETWORK_FRONT_NET: $NETWORK_FRONT_NET
-        NETWORK_BACK_NET_DRIVER: $NETWORK_BACK_NET_DRIVER
-        NETWORK_FRONT_NET_DRIVER: $NETWORK_FRONT_NET_DRIVER
-        NETWORK_BACK_NET_SUBNET: $NETWORK_BACK_NET_SUBNET
-        NETWORK_FRONT_NET_SUBNET: $NETWORK_FRONT_NET_SUBNET
-        MONGO_DB_IMAGE: $MONGO_DB_IMAGE
-        MONGO_DB_VOL_NAME: $MONGO_DB_VOL_NAME
-        MONGO_DB_VOL_DEST: $MONGO_DB_VOL_DEST
-        MONGO_DB_BACK_NET_ALIAS: $MONGO_DB_BACK_NET_ALIAS
-        MONGO_DB_FRONT_NET_ALIAS: $MONGO_DB_FRONT_NET_ALIAS
-        RABBIT_MQ_IMAGE: $RABBIT_MQ_IMAGE
-        RABBIT_MQ_VOL_HOME_NAME: $RABBIT_MQ_VOL_HOME_NAME
-        RABBIT_MQ_VOL_HOME_DEST: $RABBIT_MQ_VOL_HOME_DEST
-        RABBIT_MQ_VOL_CONFIG_NAME: $RABBIT_MQ_VOL_CONFIG_NAME
-        RABBIT_MQ_VOL_CONFIG_DEST: $RABBIT_MQ_VOL_CONFIG_DEST
-        RABBIT_MQ_BACK_NET_ALIAS: $RABBIT_MQ_BACK_NET_ALIAS
-        CRAWLER_BUILD_PATH: $CRAWLER_BUILD_PATH
-        CRAWLER_IMAGE: $CRAWLER_IMAGE
-        CRAWLER_IMAGE_VERSION: $CRAWLER_IMAGE_VERSION
-        CRAWLER_VOL_NAME: $CRAWLER_VOL_NAME
-        CRAWLER_VOL_DEST: $CRAWLER_VOL_DEST
-        UI_BUILD_PATH: $UI_BUILD_PATH
-        UI_IMAGE: $UI_IMAGE
-        UI_IMAGE_VERSION: $UI_IMAGE_VERSION
-        UI_VOL_NAME: $UI_VOL_NAME
-        UI_VOL_DEST: $UI_VOL_DEST
-        UI_PORT: $UI_PORT
     before_script:
-        - 'mkdir -p $DOCKER_CERT_PATH'
-        - 'echo "$DOCKER_HOST_CA_FILE" > $DOCKER_CERT_PATH/ca.pem'
-        - 'echo "$DOCKER_HOST_CERT_FILE" > $DOCKER_CERT_PATH/cert.pem'
-        - 'echo "$DOCKER_HOST_KEY_FILE" > $DOCKER_CERT_PATH/key.pem'
-        - 'echo "DOCKER_CERT_PATH=$DOCKER_CERT_PATH"'
-        - 'ls -a $DOCKER_CERT_PATH'
-        - 'echo "DOCKER_HOST=$DOCKER_HOST"'
-        - 'docker info'
-        - 'docker login -u $DOCKER_HUB_LOGIN -p $DOCKER_HUB_PASSWORD'
-        - 'apk add py-pip python-dev libffi-dev openssl-dev gcc libc-dev make'
-        - 'pip install docker-compose'
-        - 'docker-compose --version'
-        - 'docker ps -as'
-        - 'docker image ls'
-        - 'source ./src/.env'
-        - 'echo ${UI_PORT}'
-        - 'docker-compose -f ./src/docker-compose.yml config'
+        - 'apk add make && apk add bash'
+        - 'cd gitlab-ci && make bsgl'
     after_script:
         - 'docker ps -as'
         - 'docker image ls'
@@ -187,10 +97,11 @@ stop_branch_review:
     when: manual
     script:
         - 'echo ''Remove branch review app'''
-        - 'docker-compose -f ./src/docker-compose.yml down'
-        - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-ui) || echo'
-        - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler) || echo'
-        - 'docker image rm -f $(docker image ls -q --filter ''dangling=true'') || echo'
+        - 'ls && make downmon && make down && make imgrm'
+        # - 'docker-compose -f ./src/docker-compose.yml down'
+        # - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-ui) || echo'
+        # - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler) || echo'
+        # - 'docker image rm -f $(docker image ls -q --filter ''dangling=true'') || echo'
     environment:
         name: branch/$CI_COMMIT_REF_NAME
         action: stop
