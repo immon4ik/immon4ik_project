@@ -21,7 +21,7 @@
 
 ------------------
 
-## 15.04.2020. Создание образов контейнеров, сценария запуска приложения от otus. Проверка работы приложения.
+### 15.04.2020. Создание образов контейнеров, сценария запуска приложения от otus. Проверка работы приложения.
 
 <details>
   <summary>15.04.2020</summary>
@@ -361,7 +361,7 @@ dockr-compose logs mongo_db rabbit_mq crawler ui
 
 ------------------
 
-## 16.04.2020. Написание сценариев подключения к gcp. Упаковка образа и сборка _управляющего хоста_ с установленным docker, docker-compose, docker-machine на базе imubuntu-1604-lts. Применение packer, ansible и terraform.
+### 16.04.2020. Написание сценариев подключения к gcp. Упаковка образа и сборка _управляющего хоста_ с установленным docker, docker-compose, docker-machine на базе imubuntu-1604-lts. Применение packer, ansible и terraform.
 
 <details>
   <summary>16.04.2020</summary>
@@ -559,7 +559,7 @@ gcloud compute instances add-metadata myhost `
 
 ------------------
 
-## 17.04.2020. Доработка плейбука ansible для установки docker, docker-compose, docker-machine.
+### 17.04.2020. Доработка плейбука ansible для установки docker, docker-compose, docker-machine.
 
 <details>
   <summary>17.04.2020</summary>
@@ -1022,7 +1022,7 @@ terraform import module.vpc.google_compute_firewall.firewall_ssh default-allow-s
 
 ------------------
 
-## 18.04.2020. В первой части реализации проекта, я создал сценарий деплоя приложения от otus, используя docker-compose. Используем его в другом модуле для terraform: docker-ms-app в контуре stage.
+### 18.04.2020. В первой части реализации проекта, я создал сценарий деплоя приложения от otus, используя docker-compose. Используем его в другом модуле для terraform: docker-ms-app в контуре stage.
 
 <details>
   <summary>18.04.2020</summary>
@@ -1268,7 +1268,7 @@ export GOOGLE_PROJECT=my_project
 
 ```
 
-- Cинхронизации файлов нwindows хоста и _управляющего хоста_ настроен плагин для vsc - SFTP - <https://github.com/liximomo/vscode-sftp.git>.
+- Cинхронизации файлов windows хоста и _управляющего хоста_ настроена через плагин для vsc - SFTP - <https://github.com/liximomo/vscode-sftp.git>.
 
 - Проверяем наличие необходимых правил firewall(80,443,8000) в проекте immon4ik-docker, при необходимости добавляем недостающие.
 
@@ -1301,7 +1301,7 @@ gcloud compute firewall-rules create project-ui \
 
 ```
 
-- Создана хост docker-gl используя docker-machine:
+- Создан хост docker-gl используя docker-machine:
 
 ```bash
 docker-machine create --driver google \
@@ -1643,3 +1643,132 @@ __В следующей части будет добавлено тестиро�
 </details>
 
 ------------------
+
+### 10.05.2020. Настройка процесса сбора обратной связи.
+
+<details>
+  <summary>10.05.2020</summary>
+
+- Внедрим unit тестирование crawler и ui. Для этого доработаем gitlab-ci.yml:
+
+```yml
+[...]
+test_unit_job_ui:
+    stage: test
+    image: 'python:3.8.2-alpine'
+    services:
+        - 'python:3.8.2-alpine'
+    before_script:
+        - 'cd src/project-ui/ && pip install -r requirements.txt -r requirements-test.txt'
+    script:
+        - 'echo ''Testing otus-app-ui'''
+        - 'python -m unittest discover -s tests/'
+        - 'coverage run -m unittest discover -s tests/'
+        - 'coverage report --include ui/ui.py'
+test_unit_job_crawler:
+    stage: test
+    image: 'python:3.6.0-alpine'
+    services:
+        - 'python:3.6.0-alpine'
+    before_script:
+        - 'cd src/project-crawler/ && pip install -r requirements.txt -r requirements-test.txt'
+    script:
+        - 'echo ''Testing otus-app-crawler'''
+        - 'python -m unittest discover -s tests/'
+        - 'coverage run -m unittest discover -s tests/'
+        - 'coverage report --include crawler/crawler.py'
+[...]
+
+```
+
+__Добавим мониторинг\логирование\трейсинг в наш проект. Для этого создадим в корне репо каталог monlog и добавим в него наши наработки из домашних заданий, кастомизировав их согласно потребностям моего проекта:__
+
+- В каталогах микросрвсов создадим скрипты сборки docker_build.sh по следующему типу:
+
+```bash
+#!/bin/bash
+set -eu
+
+docker build -t $DOCKER_HUB_LOGIN/fluentd:prj .
+
+```
+
+- В корне репо для упрощения реализации создадим Makefile и сформируем его согласно потребностям моего проекта:
+
+```makefile
+APP_IMAGES := project-ui project-crawler rabbitmq
+MON_IMAGES := rabbitmq_exporter prometheus mongodb_exporter cloudprober_exporter alertmanager telegraf grafana
+LOG_IMAGES := fluentd
+DOCKER_COMMANDS := build push imgrm
+COMPOSE_COMMANDS := config up down logs
+COMPOSE_COMMANDS_MON := configmon upmon downmon logsmon
+COMPOSE_COMMANDS_LOG := configlog uplog downlog
+
+ifeq '$(strip $(DOCKER_HUB_LOGIN))' ''
+  $(warning Variable DOCKER_HUB_LOGIN is not defined, using value 'user')
+  DOCKER_HUB_LOGIN := immon
+endif
+
+ENV_APP_FILE := $(shell test -f src/.env && echo 'src/.env')
+ENV_MONLOG_FILE := $(shell test -f monlog/.env && echo 'monlog/.env')
+
+build: $(APP_IMAGES) $(MON_IMAGES) $(LOG_IMAGES)
+
+$(APP_IMAGES):
+ cd src/$@; bash docker_build.sh; cd -
+
+$(MON_IMAGES):
+ cd monlog/monitoring/$@; bash docker_build.sh; cd -; cd -
+
+$(LOG_IMAGES):
+ cd monlog/logging/$@; bash docker_build.sh; cd -; cd -
+
+push:
+ifneq '$(strip $(DOCKER_HUB_PASSWORD))' ''
+ @docker login -u $(DOCKER_HUB_LOGIN) -p $(DOCKER_HUB_PASSWORD)
+ $(foreach i,$(APP_IMAGES) $(MON_IMAGES) $(LOG_IMAGES),docker push $(DOCKER_HUB_LOGIN)/$(i);)
+else
+ @echo 'Variable DOCKER_HUB_PASSWORD is not defined, cannot push images'
+endif
+
+$(COMPOSE_COMMANDS):
+ docker-compose --env-file $(ENV_APP_FILE) -f src/docker-compose.yml $(subst up,up -d,$@)
+
+$(COMPOSE_COMMANDS_MON):
+ docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-monitoring.yml $(subst mon,,$(subst up,up -d,$@))
+
+$(COMPOSE_COMMANDS_LOG):
+ docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-logging.yml $(subst log,,$(subst up,up -d,$@))
+
+$(APP_IMAGES) $(MON_IMAGES) $(DOCKER_COMMANDS) $(COMPOSE_COMMANDS) $(COMPOSE_COMMANDS_MON) $(COMPOSE_COMMANDS_LOG): FORCE
+
+FORCE:
+
+```
+
+- В процессе внедрения мониторинга\логирования\трейсинаг доработаны множество инструментов, с полным списком можно ознакомиться в каталоге monlog.
+
+[Карта выполнения проекта](#карта-выполнения-проекта)
+
+</details>
+
+### 11.05.2020. Доработка конвейера Gitlab CI.
+
+<details>
+  <summary>11.05.2020</summary>
+
+- Реализация всех компонентов проекта приложение\мониторинг\логирование планируется на одном хосте, поэтому добавлены ресурсы для хоста docker-gl.
+
+- Согласно рекомендациям от куратора проекта доработан .gitlab-ci.yml:
+
+```yml
+
+```
+
+[Карта выполнения проекта](#карта-выполнения-проекта)
+
+</details>
+
+[Карта выполнения проекта](#карта-выполнения-проекта)
+
+</details>

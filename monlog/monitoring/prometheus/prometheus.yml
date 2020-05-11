@@ -1,0 +1,65 @@
+---
+global:
+  scrape_interval: '5s'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+        - 'localhost:9090'
+
+  - job_name: 'ui'
+    static_configs:
+      - targets:
+        - 'ui:8000'
+
+  - job_name: 'crawler'
+    static_configs:
+      - targets:
+        - 'crawler:8000'
+
+  - job_name: 'node'
+    static_configs:
+      - targets:
+        - 'node-exporter:9100'
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets:
+        - 'mongodb_exporter:9216'
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets:
+        - 'rabbitmq_exporter:9419'
+
+  - job_name: 'cloudprober'
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+        - 'cloudprober_exporter:9313'
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets:
+          - 'cadvisor:8080'
+
+  - job_name: 'docker'
+    static_configs:
+      - targets:
+        - 'docker-gl:9323'
+
+  - job_name: 'telegraf'
+    static_configs:
+      - targets:
+        - 'telegraf:9273'
+
+rule_files:
+  - 'alerts.yml'
+
+alerting:
+  alertmanagers:
+  - scheme: http
+    static_configs:
+    - targets:
+      - 'alertmanager:9093'

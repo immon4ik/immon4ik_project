@@ -14,16 +14,23 @@ services:
   rabbit_mq:
     depends_on:
       - mongo_db
-    image: ${RABBIT_MQ_IMAGE}
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
+    image: ${DOCKER_HUB_USERNAME}/${RABBIT_MQ_IMAGE}:${RABBIT_MQ_IMAGE_VERSION}
     volumes:
       - ${RABBIT_MQ_VOL_HOME_NAME}:${RABBIT_MQ_VOL_HOME_DEST}
       - ${RABBIT_MQ_VOL_CONFIG_NAME}:${RABBIT_MQ_VOL_CONFIG_DEST}
+    ports:
+      - ${RABBIT_MQ_PORT}:${RABBIT_MQ_PORT}/tcp
+      - '8081:15672'
+      - '5672:5672'
     networks:
       back_net:
         aliases:
           - ${RABBIT_MQ_BACK_NET_ALIAS}
   crawler:
-    build: ${CRAWLER_BUILD_PATH}
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
     depends_on:
       - rabbit_mq
     image: ${DOCKER_HUB_USERNAME}/${CRAWLER_IMAGE}:${CRAWLER_IMAGE_VERSION}
@@ -31,8 +38,14 @@ services:
       - ${CRAWLER_VOL_NAME}:${CRAWLER_VOL_DEST}
     networks:
       - ${NETWORK_BACK_NET}
+    logging:
+      driver: 'fluentd'
+      options:
+        fluentd-address: localhost:24224
+        tag: service.crawler
   ui:
-    build: ${UI_BUILD_PATH}
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
     depends_on:
       - crawler
     image: ${DOCKER_HUB_USERNAME}/${UI_IMAGE}:${UI_IMAGE_VERSION}
@@ -42,6 +55,11 @@ services:
       - ${UI_PORT}:${UI_PORT}/tcp
     networks:
       - ${NETWORK_FRONT_NET}
+    logging:
+      driver: 'fluentd'
+      options:
+        fluentd-address: localhost:24224
+        tag: service.ui
 
 volumes:
   db_crawler:

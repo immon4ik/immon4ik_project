@@ -1,0 +1,117 @@
+version: '3.8'
+services:
+  prometheus:
+    image: ${DOCKER_HUB_USERNAME}/prometheus:${PROMETHEUS_VERSION}
+    ports:
+      - '9090:9090'
+    volumes:
+      - prometheus_data:/prometheus
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=1d'
+  node-exporter:
+    image: prom/node-exporter:latest
+    user: root
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($$|/)"'
+  mongodb_exporter:
+    image: ${DOCKER_HUB_USERNAME}/mongodb_exporter:${MONGODB_EXPORTER_VERSION}
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+    ports:
+      - '9216:9216'
+    networks:
+      - ${NETWORK_BACK_NET}
+  rabbitmq_exporter:
+    image: ${DOCKER_HUB_USERNAME}/rabbitmq_exporter:${RABBITMQ_EXPORTER_VERSION}
+    # environment: 
+    #   - RABBITMQ_NODENAME=crawler_mq
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  cloudprober_exporter:
+    image: ${DOCKER_HUB_USERNAME}/cloudprober_exporter:${CLOUDPROBER_EXPORTER_VERSION}
+    ports:
+      - '9313:9313'
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  cadvisor:
+    image: google/cadvisor:${CADVISOR_VERSION}
+    volumes:
+      - '/:/rootfs:ro'
+      - '/var/run:/var/run:rw'
+      - '/sys:/sys:ro'
+      - '/var/lib/docker/:/var/lib/docker:ro'
+    ports:
+      - '8080:8080'
+    networks:
+        - ${NETWORK_FRONT_NET}
+  grafana:
+    image: ${DOCKER_HUB_USERNAME}/grafana:${GRAFANA_VERSION}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  alertmanager:
+    image: ${DOCKER_HUB_USERNAME}/alertmanager:${ALERTMANAGER_VERSION}
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+    ports:
+      - 9093:9093
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  telegraf:
+    depends_on:
+      - influxdb
+    image: ${DOCKER_HUB_USERNAME}/telegraf:${TELEGRAF_VERSION}
+    environment: 
+      - USER="telegraf"
+      - INFLUX_URL="http://influxdb:8086"
+      - INFLUX_SKIP_DATABASE_CREATION="true"
+      - INFLUX_PASSWORD="telegraf"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  influxdb:
+    image: influxdb
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    ports:
+      - 8086:8086
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  influxdb_data:
+
+networks:
+  back_net:
+  front_net:

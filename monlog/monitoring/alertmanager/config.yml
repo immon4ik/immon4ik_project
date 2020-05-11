@@ -1,0 +1,23 @@
+---
+global:
+  slack_api_url: 'https://hooks.slack.com/services/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'
+
+route:
+ receiver: slack-notifications
+
+receivers:
+- name: slack-notifications
+  slack_configs:
+  - channel: '#pavel-batsev'
+    title: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}"
+    text: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
+  email_configs:
+  - to: 'otus@immon.pro'
+    from: 'otus@immon.pro'
+    smarthost: 'smtp.mail.ru:465'
+    auth_username: 'otus@immon.pro'
+    auth_password: 'Trewq123'
+    send_resolved: true
+    require_tls: false
+    headers:
+      Subject: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}"
