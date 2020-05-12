@@ -1,0 +1,226 @@
+version: '3.8'
+services:
+  mongo_db:
+    image: ${MONGO_DB_IMAGE}
+    volumes:
+      - ${MONGO_DB_VOL_NAME}:${MONGO_DB_VOL_DEST}
+    networks:
+        back_net:
+            aliases:
+                - ${MONGO_DB_BACK_NET_ALIAS}
+        front_net:
+            aliases:
+                - ${MONGO_DB_FRONT_NET_ALIAS}
+  rabbit_mq:
+    depends_on:
+      - mongo_db
+    image: ${DOCKER_HUB_USERNAME}/${RABBIT_MQ_IMAGE}:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    volumes:
+      - ${RABBIT_MQ_VOL_HOME_NAME}:${RABBIT_MQ_VOL_HOME_DEST}
+      - ${RABBIT_MQ_VOL_CONFIG_NAME}:${RABBIT_MQ_VOL_CONFIG_DEST}
+    ports:
+      - ${RABBIT_MQ_PORT}:${RABBIT_MQ_PORT}/tcp
+      - '8081:15672'
+      - '5672:5672'
+    networks:
+      back_net:
+        aliases:
+          - ${RABBIT_MQ_BACK_NET_ALIAS}
+  crawler:
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
+    depends_on:
+      - rabbit_mq
+    image: ${DOCKER_HUB_USERNAME}/${CRAWLER_IMAGE}:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    volumes:
+      - ${CRAWLER_VOL_NAME}:${CRAWLER_VOL_DEST}
+    networks:
+      - ${NETWORK_BACK_NET}
+    logging:
+      driver: 'fluentd'
+      options:
+        fluentd-address: localhost:24224
+        tag: service.crawler
+  ui:
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
+    depends_on:
+      - crawler
+    image: ${DOCKER_HUB_USERNAME}/${UI_IMAGE}:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    volumes:
+      - ${UI_VOL_NAME}:${UI_VOL_DEST}
+    ports:
+      - ${UI_PORT}:${UI_PORT}/tcp
+    networks:
+      - ${NETWORK_FRONT_NET}
+    logging:
+      driver: 'fluentd'
+      options:
+        fluentd-address: localhost:24224
+        tag: service.ui
+  fluentd:
+    image: ${DOCKER_HUB_USERNAME}/fluentd:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    ports:
+      - '24224:24224'
+      - '24224:24224/udp'
+    networks:
+      - ${NETWORK_FRONT_NET}
+      - ${NETWORK_BACK_NET}
+  prometheus:
+    image: ${DOCKER_HUB_USERNAME}/prometheus:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    ports:
+      - '9090:9090'
+    volumes:
+      - prometheus_data:/prometheus
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=1d'
+  node-exporter:
+    image: prom/node-exporter:latest
+    user: root
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($$|/)"'
+  mongodb_exporter:
+    image: ${DOCKER_HUB_USERNAME}/mongodb_exporter:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+    ports:
+      - '9216:9216'
+    networks:
+      - ${NETWORK_BACK_NET}
+  rabbitmq_exporter:
+    image: ${DOCKER_HUB_USERNAME}/rabbitmq_exporter:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    # environment: 
+    #   - RABBITMQ_NODENAME=crawler_mq
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  cloudprober_exporter:
+    image: ${DOCKER_HUB_USERNAME}/cloudprober_exporter:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    ports:
+      - '9313:9313'
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  cadvisor:
+    image: google/cadvisor:${CADVISOR_VERSION}
+    volumes:
+      - '/:/rootfs:ro'
+      - '/var/run:/var/run:rw'
+      - '/sys:/sys:ro'
+      - '/var/lib/docker/:/var/lib/docker:ro'
+    ports:
+      - '8080:8080'
+    networks:
+        - ${NETWORK_FRONT_NET}
+  grafana:
+    image: ${DOCKER_HUB_USERNAME}/grafana:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  alertmanager:
+    image: ${DOCKER_HUB_USERNAME}/alertmanager:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+    ports:
+      - 9093:9093
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  telegraf:
+    depends_on:
+      - influxdb
+    image: ${DOCKER_HUB_USERNAME}/telegraf:${CI_COMMIT_TAG:-2.2.0}.${CI_COMMIT_SHORT_SHA:-0}
+    environment: 
+      - USER="telegraf"
+      - INFLUX_URL="http://influxdb:8086"
+      - INFLUX_SKIP_DATABASE_CREATION="true"
+      - INFLUX_PASSWORD="telegraf"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  influxdb:
+    image: influxdb
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    ports:
+      - 8086:8086
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  elasticsearch:
+    image: elasticsearch:7.6.2
+    environment:
+      - 'discovery.type=single-node'
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    expose:
+      - 9200
+    ports:
+      - '9200:9200'
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  kibana:
+    image: kibana:7.6.2
+    ports:
+      - '5601:5601'
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - '9411:9411'
+    networks:
+      - ${NETWORK_BACK_NET}
+      - ${NETWORK_FRONT_NET}
+
+volumes:
+  db_crawler:
+  mq_rabbit_home:
+  mq_rabbit_config:
+  bot_crawler:
+  app_ui:
+  prometheus_data:
+  grafana_data:
+  influxdb_data:
+  elasticsearch_data:
+
+networks:
+  back_net:
+    driver: ${NETWORK_BACK_NET_DRIVER}
+    ipam:
+      driver: default
+      config:
+        - subnet: ${NETWORK_BACK_NET_SUBNET}
+  front_net:
+    driver: ${NETWORK_FRONT_NET_DRIVER}
+    ipam:
+      driver: default
+      config:
+        - subnet: ${NETWORK_FRONT_NET_SUBNET}
