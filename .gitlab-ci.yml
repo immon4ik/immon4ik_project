@@ -97,11 +97,7 @@ stop_branch_review:
     when: manual
     script:
         - 'echo ''Remove branch review app'''
-        - 'ls && make downmon && make down && make imgrm'
-        # - 'docker-compose -f ./src/docker-compose.yml down'
-        # - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-ui) || echo'
-        # - 'docker image rm -f $(docker image ls -q ${DOCKER_HUB_LOGIN:-user}/otus-app-crawler) || echo'
-        # - 'docker image rm -f $(docker image ls -q --filter ''dangling=true'') || echo'
+        - 'ls && make downall && make imgrm'
     environment:
         name: branch/$CI_COMMIT_REF_NAME
         action: stop
