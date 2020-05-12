@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.2.0](https://github.com/immon4ik/immon4ik_project/tree/2.2.0) (2020-05-12)
+
+[Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/2.1.0...2.2.0)
+
+## В процессе сделано - [2.2.0]
+
+[09.05.2020] - Внедрение unit тестирования кода ui и crawler.
+[10.05.2020] - Внедрение мониторинга\логирования\трасинга.
+[11.05.2020] - Выполнение рекомендаций от куратора проекта: переработанный before_script, build\deploy\remove через makefile.
+[12.05.2020] - Доработка шага удаления проекта в Gitlab CI. Доработка .gitlab-ci.yml\readme.md
+[12.05.2020] - Переработка readme.md
+
+## Изменено - [2.2.0]
+
+- [x] Добавлен новый функционал.
+- [x] Исправлены ошибки.
+- [ ] Удалены ошибочные решения.
+
+**Implemented enhancements:**
+
+- i4-project-11. [\#12](https://github.com/immon4ik/immon4ik_project/issues/12)
+- i4-project-10. [\#11](https://github.com/immon4ik/immon4ik_project/issues/11)
+
 ## [2.1.0](https://github.com/immon4ik/immon4ik_project/tree/2.1.0) (2020-04-18)
 
 [Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/2.0.1...2.1.0)
