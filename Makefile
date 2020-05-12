@@ -2,9 +2,9 @@ APP_IMAGES := project-ui project-crawler rabbitmq
 MON_IMAGES := rabbitmq_exporter prometheus mongodb_exporter cloudprober_exporter alertmanager telegraf grafana
 LOG_IMAGES := fluentd
 DOCKER_COMMANDS := build push imgrm
-COMPOSE_COMMANDS := config up down logs
+COMPOSE_COMMANDS := config up down logs restart
 COMPOSE_COMMANDS_MON := configmon upmon downmon logsmon
-COMPOSE_COMMANDS_LOG := configlog uplog downlog
+COMPOSE_COMMANDS_LOG := configlg uplg downlg logslg
 
 ifeq '$(strip $(DOCKER_HUB_LOGIN))' ''
   $(warning Variable DOCKER_HUB_LOGIN is not defined, using value 'user')
@@ -40,7 +40,7 @@ $(COMPOSE_COMMANDS_MON):
 	docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-monitoring.yml $(subst mon,,$(subst up,up -d,$@))
 
 $(COMPOSE_COMMANDS_LOG):
-	docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-logging.yml $(subst log,,$(subst up,up -d,$@))
+	docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-logging.yml $(subst lg,,$(subst up,up -d,$@))
 
 $(APP_IMAGES) $(MON_IMAGES) $(DOCKER_COMMANDS) $(COMPOSE_COMMANDS) $(COMPOSE_COMMANDS_MON) $(COMPOSE_COMMANDS_LOG): FORCE
 

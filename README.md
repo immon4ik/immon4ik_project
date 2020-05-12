@@ -4,7 +4,7 @@
   - [immon4ik_project](#immon4ik_project)
   - [15.04.2020](#15042020)
     - [Создание образов контейнеров, сценария запуска приложения от otus. Проверка работы приложения.](#создание-образов-контейнеров-сценария-запуска-приложения-от-otus-проверка-работы-приложения)
-    - [Поймал проблемы с выполнением sh скриптов в ENTRYPOINT \["docker-entrypoint.sh"\]](#поймал-проблемы-с-выполнением-sh-скриптов-в-entrypoint-docker-entrypointsh)
+    - [Поймал проблемы с выполнением sh скриптов в ENTRYPOINT.](#поймал-проблемы-с-выполнением-sh-скриптов-в-entrypoint)
   - [16.04.2020](#16042020)
     - [Написание сценариев подключения к gcp. Упаковка образа и сборка _управляющего хоста_ с установленным docker, docker-compose, docker-machine на базе imubuntu-1604-lts. Применение packer, ansible и terraform.](#написание-сценариев-подключения-к-gcp-упаковка-образа-и-сборка-_управляющего-хоста_-с-установленным-docker-docker-compose-docker-machine-на-базе-imubuntu-1604-lts-применение-packer-ansible-и-terraform)
     - [Работы ведутся в инраструктурном проекте gcp - immon4ik-infra.](#работы-ведутся-в-инраструктурном-проекте-gcp---immon4ik-infra)
@@ -368,10 +368,10 @@ dockr-compose logs mongo_db rabbit_mq crawler ui
 
 </details>
 
-### Поймал проблемы с выполнением sh скриптов в ENTRYPOINT ["docker-entrypoint.sh"]
+### Поймал проблемы с выполнением sh скриптов в ENTRYPOINT.
 
 <details>
-  <summary>15.04.2020. Ошибка ENTRYPOINT.</summary>
+  <summary>15.04.2020. Ошибка ENTRYPOINT ["docker-entrypoint.sh"].</summary>
 
 Ошибка - “exec: “docker-entrypoint.sh”: stat docker-entrypoint.sh: no such file or directory”. На windows хостах их следует создавать с параметром "select end of line sequence" равным LF или в nix системе - <https://stackoverflow.com/questions/55786898/standard-init-linux-go190-exec-user-process-caused-exec-format-error-when-ru>
 
@@ -2278,12 +2278,98 @@ ssh immon4ik@35.233.83.124
 
 ```
 
+- Переходим к управлению docker-gl:
+
+```bash
+docker-machine ls && eval $(docker-machine env docker-gl) && docker-machine ls
+
+```
+
 - Перходим в папку проекта:
 
 ```bash
 cd ~/otus/project/
 
 ```
+
+- Запускаем установку приложения от otus, используя makefile:
+
+```bash
+make up
+
+```
+
+- Полная загрузка приложения занимает порядка 30 секунд. Проверяем логи контейнеров:
+
+```bash
+make logs
+
+```
+
+- И доступность приложения в веб-интерфейсе chrome:
+
+Otus App - <http://35.233.84.19:8000/>
+
+- Развернём мониторинг:
+
+```bash
+make upmon
+
+```
+
+- Полная загрузка мониторинга занимает 30-90 секунд. Проверяем логи контейнеров:
+
+```bash
+make logsmon
+
+```
+
+- И доступность инструментов мониторинга в веб-интерфейсе chrome:
+
+prometheus - <http://35.233.84.19:9090/>
+
+cadvisor - <http://35.233.84.19:8080/>
+
+grafana - <http://35.233.84.19:3000/>
+
+- Проверяем интеграцию alertmanager в канал slack:
+
+<https://devops-team-otus.slack.com/archives/CRTMNFU4U>
+
+- Проверяем интеграцию alertmanager в почту:
+
+<https://e.mail.ru/inbox/>
+
+- Развернём логирование и трейсинг:
+
+```bash
+make uplg
+
+```
+
+- Полная загрузка мониторинга занимает 3-5 минут. Проверяем логи контейнеров:
+
+```bash
+make logslg
+
+```
+
+- И доступность инструментов логирования в веб-интерфейсе chrome:
+
+kibana - <http://35.233.84.19:5601/>
+
+zipkin - <http://35.233.84.19:9411/>
+
+__Для zipkin надо добавить функции типа @zipkin_span в код микросервисов. Возможно в будущем.__
+
+- По завершению проверок погасим все контейнеры:
+
+```bash
+cd gitlab-ci && make downall
+
+```
+
+__Линк на screenscast по работе проекта, используя docker-compose: <http://35.233.84.19:5601/>__
 
 [Карта выполнения проекта](#карта-выполнения-проекта)
 
