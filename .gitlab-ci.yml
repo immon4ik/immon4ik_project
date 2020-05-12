@@ -71,7 +71,7 @@ branch_review:
         - master
     script:
         - 'echo "Deploy on branch/$CI_COMMIT_REF_NAME environment"'
-        - 'ls && make up && make upmon'
+        - 'ls && make uplg && make up && make upmon'
     environment:
         name: branch/$CI_COMMIT_REF_NAME
         url: 'http://$CI_SERVER_HOST:8000'

@@ -4,7 +4,7 @@ LOG_IMAGES := fluentd
 DOCKER_COMMANDS := build push imgrm
 COMPOSE_COMMANDS := config up down logs
 COMPOSE_COMMANDS_MON := configmon upmon downmon logsmon
-COMPOSE_COMMANDS_LOG := configlog uplog downlog
+COMPOSE_COMMANDS_LOG := configlg uplg downlg logslg
 COMPOSE_COMMANDS_DEL := downall
 
 ifeq '$(strip $(DOCKER_HUB_LOGIN))' ''
@@ -51,7 +51,7 @@ $(COMPOSE_COMMANDS_MON):
 	cd -; docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-monitoring-gl.yml $(subst mon,,$(subst up,up -d,$@))
 
 $(COMPOSE_COMMANDS_LOG):
-	cd -; docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-logging-gl.yml $(subst log,,$(subst up,up -d,$@))
+	cd -; docker-compose --env-file $(ENV_MONLOG_FILE) -f monlog/docker-compose-logging-gl.yml $(subst lg,,$(subst up,up -d,$@))
 
 $(COMPOSE_COMMANDS_DEL):
 	docker-compose --env-file $(ENV_DEL_FILE) -f docker-compose-del-gl.yml $(subst all,,$(subst up,up -d,$@)) -v
