@@ -2309,7 +2309,7 @@ make logs
 
 - И доступность приложения в веб-интерфейсе chrome:
 
-Otus App - <http://35.233.84.19:8000/>
+Otus App - <http://docker-gl-ip:8000/>
 
 - Развернём мониторинг:
 
@@ -2327,11 +2327,11 @@ make logsmon
 
 - И доступность инструментов мониторинга в веб-интерфейсе chrome:
 
-prometheus - <http://35.233.84.19:9090/>
+prometheus - <http://docker-gl-ip:9090/>
 
-cadvisor - <http://35.233.84.19:8080/>
+cadvisor - <http://docker-gl-ip:8080/>
 
-grafana - <http://35.233.84.19:3000/>
+grafana - <http://docker-gl-ip:3000/>
 
 - Проверяем интеграцию alertmanager в канал slack:
 
@@ -2357,9 +2357,9 @@ make logslg
 
 - И доступность инструментов логирования в веб-интерфейсе chrome:
 
-kibana - <http://35.233.84.19:5601/>
+kibana - <http://docker-gl-ip:5601/>
 
-zipkin - <http://35.233.84.19:9411/>
+zipkin - <http://docker-gl-ip:9411/>
 
 __Для zipkin надо добавить функции типа @zipkin_span в код микросервисов. Возможно в будущем.__
 
@@ -2370,7 +2370,7 @@ cd gitlab-ci && make downall
 
 ```
 
-__Линк на screenscast по работе проекта, используя docker-compose: <http://mycloud/>__
+__Линк на screenscast по работе проекта, используя docker-compose: <https://cloud.mail.ru/public/39ZA/4K4hW1CzF>__
 
 [Карта выполнения проекта](#карта-выполнения-проекта)
 
@@ -2407,35 +2407,35 @@ git push -u origin gitlab-ci-otus-app
 
 - Переходим в Gitlab CI:
 
-<http://35.233.84.19/project/immon4ik/pipelines>
+<http://docker-gl-ip/project/immon4ik/pipelines>
 
 - По завершению проверяем:
 
 Интеграцию Gitlab CI со slack - <https://devops-team-otus.slack.com/archives/CRTMNFU4U>
 
-Otus App - <http://35.233.84.19:8000/>
+Otus App - <http://docker-gl-ip:8000/>
 
-prometheus - <http://35.233.84.19:9090/>
+prometheus - <http://docker-gl-ip:9090/>
 
-cadvisor - <http://35.233.84.19:8080/>
+cadvisor - <http://docker-gl-ip:8080/>
 
-grafana - <http://35.233.84.19:3000/>
+grafana - <http://docker-gl-ip:3000/>
 
 Интеграция alertmanager с slack - <https://devops-team-otus.slack.com/archives/CRTMNFU4U>
 
 интеграцию alertmanager в почту - <https://e.mail.ru/inbox/>
 
-kibana - <http://35.233.84.19:5601/>
+kibana - <http://docker-gl-ip:5601/>
 
-zipkin - <http://35.233.84.19:9411/>
+zipkin - <http://docker-gl-ip:9411/>
 
 __Для zipkin надо добавить функции типа @zipkin_span в код микросервисов. Возможно в будущем.__
 
 - По завершению проверок погасим все контейнеры, выполнив в шаге Review джоб stop_branch_review:
 
-<http://35.233.84.19/project/immon4ik/-/jobs>
+<http://docker-gl-ip/project/immon4ik/-/jobs>
 
-__Линк на screenscast по работе проекта, используя docker-compose: <http://mycloud/>__
+__Линк на screenscast по работе проекта, используя docker-compose: <https://cloud.mail.ru/public/p1Se/5wRDgzut7>__
 
 [Карта выполнения проекта](#карта-выполнения-проекта)
 
