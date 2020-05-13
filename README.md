@@ -32,7 +32,7 @@ __Основной задачей проекта является закрепл
 
 #### Приложение от Otus
 
-![Приложение от Otus](https://raw.githubusercontent.com/immon4ik/immon4ik_project/master/src/images/otusapp.png)
+![Приложение от Otus](https://github.com/immon4ik/immon4ik_project/blob/master/src/images/otusapp.png?raw=true)
 
 [Карта выполнения проекта](#карта-выполнения-проекта)
 
