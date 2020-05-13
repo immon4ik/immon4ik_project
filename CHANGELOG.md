@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.2.2](https://github.com/immon4ik/immon4ik_project/tree/2.2.2) (2020-05-13)
+
+[Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/2.2.1...2.2.2)
+
+Hotfix проекта перед днём X: мелкие доработки и т.п.
+
+## В процессе сделано - [2.2.2]
+
+[13.05.2020] - Доработка readme.md. Небольшой косметический fix.
+
+## Изменено - [2.2.2]
+
+- [ ] Добавлен новый функционал.
+- [x] Исправлены ошибки.
+- [ ] Удалены ошибочные решения.
+
+## [2.2.1](https://github.com/immon4ik/immon4ik_project/tree/2.2.1) (2020-05-13)
+
+[Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/2.2.0...2.2.1)
+
 ## [2.2.0](https://github.com/immon4ik/immon4ik_project/tree/2.2.0) (2020-05-12)
 
 [Full Changelog](https://github.com/immon4ik/immon4ik_project/compare/2.1.0...2.2.0)
